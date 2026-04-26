@@ -68,13 +68,13 @@ class ShotAnalysisResponse(BaseModel):
     angle_scores: Dict = {}
 
 
-@app.get("/health")
+@app.get("/api/health")
 async def health_check():
     """Health check endpoint"""
     return {"status": "ok", "service": "Cricket Batting Coach API"}
 
 
-@app.post("/analyze-frame", response_model=FrameAnalysisResponse)
+@app.post("/api/analyze-frame", response_model=FrameAnalysisResponse)
 async def analyze_frame(payload: FramePayload):
     """
     Analyze a single frame of pose data.
@@ -108,7 +108,7 @@ async def analyze_frame(payload: FramePayload):
         )
 
 
-@app.post("/analyze-shot", response_model=ShotAnalysisResponse)
+@app.post("/api/analyze-shot", response_model=ShotAnalysisResponse)
 async def analyze_shot_sequence(payload: ShotSequencePayload):
     """
     Analyze a complete shot sequence using DTW comparison.
@@ -155,7 +155,7 @@ async def analyze_shot_sequence(payload: ShotSequencePayload):
         )
 
 
-@app.post("/batch-analyze")
+@app.post("/api/batch-analyze")
 async def batch_analyze(payloads: List[FramePayload]):
     """
     Analyze multiple frames in batch.
@@ -184,7 +184,7 @@ async def batch_analyze(payloads: List[FramePayload]):
     return results
 
 
-@app.get("/shots")
+@app.get("/api/shots")
 async def list_shots():
     """
     List all available shot types.
@@ -199,7 +199,7 @@ async def list_shots():
         return {"error": str(e)}
 
 
-@app.get("/ideal-model")
+@app.get("/api/ideal-model")
 async def get_ideal_model(shot_type: str = "cover_drive"):
     """
     Get the ideal model reference data for a specific shot.

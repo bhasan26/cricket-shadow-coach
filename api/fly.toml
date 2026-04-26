@@ -2,7 +2,7 @@
 # Run: fly launch --no-deploy   (first time)
 # Then: fly deploy              (to deploy)
 
-app = "cricket-shadow-coach-api"
+app = "cricket-shadow-coach-api-bhasan26"
 primary_region = "sjc"
 
 [build]
