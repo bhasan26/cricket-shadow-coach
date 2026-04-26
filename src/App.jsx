@@ -1,4 +1,5 @@
 import React from 'react';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import CameraFeed from './CameraFeed';
 import './App.css';
 
@@ -112,6 +113,7 @@ function App() {
         <span style={{ margin: '0 10px', opacity: 0.3 }}>|</span>
         <span>Still in Test</span>
       </footer>
+      <SpeedInsights />
     </div>
   );
 }
