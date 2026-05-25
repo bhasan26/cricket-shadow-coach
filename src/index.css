@@ -1,4 +1,28 @@
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,500;0,700;0,800;1,600&display=swap');
+
+:root {
+  --bg-primary: #030712;
+  --bg-secondary: #0b1329;
+  --bg-tertiary: #111a36;
+  --bg-card: rgba(13, 23, 47, 0.7);
+  --border-light: rgba(255, 255, 255, 0.05);
+  
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-muted: #475569;
+  
+  --brand-gold: #f59e0b;
+  --brand-gold-glow: rgba(245, 158, 11, 0.25);
+  
+  --brand-green: #10b981;
+  --brand-green-glow: rgba(16, 185, 129, 0.2);
+  
+  --brand-red: #f43f5e;
+  --brand-red-glow: rgba(244, 63, 94, 0.2);
+  
+  --brand-sky: #0ea5e9;
+  --brand-sky-glow: rgba(14, 165, 233, 0.25);
+}
 
 * {
   margin: 0;
@@ -7,12 +31,85 @@
 }
 
 body {
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: 'Outfit', 'Inter', system-ui, -apple-system, sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 100vh;
+  overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  background: #f5f2ec;
+  position: relative;
+  
+  /* Symmetrical carbon fiber mesh & stadium lit overlay */
+  background-image: 
+    radial-gradient(circle at 50% 120%, rgba(16, 185, 129, 0.08) 0%, transparent 65%),
+    radial-gradient(circle at 10% 20%, rgba(14, 165, 233, 0.04) 0%, transparent 40%),
+    radial-gradient(circle at 90% 20%, rgba(245, 158, 11, 0.03) 0%, transparent 40%),
+    linear-gradient(rgba(255, 255, 255, 0.007) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.007) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 100% 100%, 20px 20px, 20px 20px;
 }
 
-#root {
-  min-height: 100vh;
+/* Glassmorphism Cockpit Panels */
+.glass-panel {
+  background: var(--bg-card);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-light);
+  border-radius: 20px;
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.7);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+  position: relative;
+}
+
+.glass-panel::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
+}
+
+.glass-panel:hover {
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 25px 45px -10px rgba(0, 0, 0, 0.8);
+  transform: translateY(-2px);
+}
+
+/* Custom Telemetry Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--text-muted);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+}
+
+/* Animations */
+@keyframes glow-pulse-green {
+  0%, 100% { border-color: rgba(16, 185, 129, 0.2); box-shadow: 0 0 10px rgba(16, 185, 129, 0.05); }
+  50% { border-color: rgba(16, 185, 129, 0.5); box-shadow: 0 0 20px rgba(16, 185, 129, 0.15); }
+}
+
+@keyframes glow-pulse-blue {
+  0%, 100% { border-color: rgba(14, 165, 233, 0.2); box-shadow: 0 0 10px rgba(14, 165, 233, 0.05); }
+  50% { border-color: rgba(14, 165, 233, 0.5); box-shadow: 0 0 20px rgba(14, 165, 233, 0.15); }
+}
+
+@keyframes live-red-alert {
+  0%, 100% { opacity: 1; filter: drop-shadow(0 0 8px rgba(244, 63, 94, 0.6)); }
+  50% { opacity: 0.35; filter: drop-shadow(0 0 1px rgba(244, 63, 94, 0.1)); }
+}
+
+.pulse-record-glow {
+  animation: live-red-alert 1.6s infinite ease-in-out;
 }

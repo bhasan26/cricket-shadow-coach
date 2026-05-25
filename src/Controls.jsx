@@ -1,17 +1,21 @@
 import React from 'react';
 
 function Controls({ onStart, onStop, isRecording, isAnalyzing }) {
-  const baseStyle = {
-    padding: '12px 24px',
+  const btnBase = {
+    padding: '13px 24px',
     fontSize: '0.9rem',
-    fontWeight: 600,
+    fontWeight: 700,
     border: 'none',
-    borderRadius: '10px',
+    borderRadius: '12px',
     cursor: isAnalyzing ? 'not-allowed' : 'pointer',
-    transition: 'all 0.2s ease',
-    opacity: isAnalyzing ? 0.5 : 1,
+    transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
     width: '100%',
-    letterSpacing: '0.3px',
+    letterSpacing: '0.5px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '8px',
+    textTransform: 'uppercase'
   };
 
   return (
@@ -20,33 +24,38 @@ function Controls({ onStart, onStop, isRecording, isAnalyzing }) {
         type="button"
         onClick={onStart}
         disabled={isAnalyzing}
+        className={isRecording ? 'btn-warning' : 'btn-primary'}
         style={{
-          ...baseStyle,
-          background: isRecording
-            ? 'linear-gradient(135deg, #b8860b, #daa520)'
-            : 'linear-gradient(135deg, #3a5a3c, #5a7d3a)',
-          color: '#fff',
-          boxShadow: isRecording
-            ? '0 3px 12px rgba(184,134,11,0.3)'
-            : '0 3px 12px rgba(58,90,60,0.3)',
+          ...btnBase,
+          opacity: isAnalyzing ? 0.5 : 1,
         }}
       >
-        {isRecording ? '⏺ Recording...' : '▶ Start Recording'}
+        {isRecording ? (
+          <>
+            <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#fff', animation: 'live-record-glow 1s infinite' }} />
+            ⏺ Recording Live...
+          </>
+        ) : (
+          <>
+            <span style={{ fontSize: '1rem' }}>▶</span>
+            Start Practice
+          </>
+        )}
       </button>
+      
       <button
         type="button"
         onClick={onStop}
         disabled={isAnalyzing || !isRecording}
+        className="btn-danger"
         style={{
-          ...baseStyle,
-          background: 'linear-gradient(135deg, #a0522d, #c0392b)',
-          color: '#fff',
-          boxShadow: '0 3px 12px rgba(192,57,43,0.2)',
+          ...btnBase,
           opacity: (!isRecording || isAnalyzing) ? 0.35 : 1,
           cursor: (!isRecording || isAnalyzing) ? 'not-allowed' : 'pointer',
         }}
       >
-        ⏹ Stop & Analyze
+        <span>⏹</span>
+        Stop & Analyze Action
       </button>
     </div>
   );

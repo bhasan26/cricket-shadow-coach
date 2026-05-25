@@ -350,6 +350,13 @@ SHOT_MODELS = {
         "difficulty": "Advanced",
         "sequence": IDEAL_FLICK_SHOT,
     },
+    "bowling_action": {
+        "name": "Bowling Action Check",
+        "emoji": "🥎",
+        "description": "ICC Rule 11.1 - 15° elbow extension limit (chucking detector)",
+        "difficulty": "Elite",
+        "sequence": [],  # Bowling is evaluated dynamically via biomechanics rules
+    },
 }
 
 
@@ -382,6 +389,13 @@ ANGLE_THRESHOLDS = {
         "max_acceptable": 155,
         "feedback_low": "Bend your back knee slightly",
         "feedback_high": "Don't bend your back knee too much",
+    },
+    "spine_tilt": {
+        "ideal": 12,
+        "min_acceptable": 5,
+        "max_acceptable": 25,
+        "feedback_low": "Lean forward slightly more into the shot for better balance",
+        "feedback_high": "Keep your body more upright; you are leaning too far or falling over",
     },
 }
 

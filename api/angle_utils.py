@@ -151,6 +151,51 @@ def get_right_knee_angle(landmarks):
         return 0.0
 
 
+def get_spine_tilt(landmarks):
+    """
+    Calculate spine tilt (torso alignment relative to vertical).
+    Left shoulder = 11, Right shoulder = 12
+    Left hip = 23, Right hip = 24
+    
+    Args:
+        landmarks: List of landmark dicts or tuples with x, y, z
+        
+    Returns:
+        Float: Angle in degrees relative to vertical (0 is perfectly upright)
+    """
+    try:
+        vis = [landmarks[i].get("visibility", 1.0) for i in [11, 12, 23, 24]]
+        if sum(vis) / 4 < 0.4 or min(vis) < 0.1:
+            return 0.0
+            
+        mid_shoulder = (
+            (landmarks[11]["x"] + landmarks[12]["x"]) / 2.0,
+            (landmarks[11]["y"] + landmarks[12]["y"]) / 2.0,
+            (landmarks[11]["z"] + landmarks[12]["z"]) / 2.0
+        )
+        mid_hip = (
+            (landmarks[23]["x"] + landmarks[24]["x"]) / 2.0,
+            (landmarks[23]["y"] + landmarks[24]["y"]) / 2.0,
+            (landmarks[23]["z"] + landmarks[24]["z"]) / 2.0
+        )
+        
+        # Vector from hip to shoulder
+        torso = np.array(mid_shoulder) - np.array(mid_hip)
+        # Vertical axis (y points down in MediaPipe, so upward is -1.0)
+        vertical = np.array([0.0, -1.0, 0.0])
+        
+        torso_norm = np.linalg.norm(torso)
+        if torso_norm == 0:
+            return 0.0
+            
+        cosine = np.dot(torso, vertical) / torso_norm
+        cosine = np.clip(cosine, -1.0, 1.0)
+        angle_rad = np.arccos(cosine)
+        return float(np.degrees(angle_rad))
+    except (KeyError, IndexError, TypeError):
+        return 0.0
+
+
 def get_head_alignment(landmarks):
     """
     Calculate head alignment relative to the front foot.
@@ -174,20 +219,36 @@ def get_head_alignment(landmarks):
 
 def extract_shot_angles(landmarks):
     """
-    Extract all critical angles for shot evaluation.
+    Extract all critical angles and key relative coordinates for shot evaluation.
     
     Args:
         landmarks: List of 33 landmark dicts from MediaPipe Pose
     
     Returns:
-        Dict: Dictionary of angle measurements
+        Dict: Dictionary of angle measurements and key positions
     """
+    try:
+        left_wrist_y = float(landmarks[15]["y"])
+        left_shoulder_y = float(landmarks[11]["y"])
+        right_wrist_y = float(landmarks[16]["y"])
+        right_shoulder_y = float(landmarks[12]["y"])
+    except (KeyError, IndexError, TypeError):
+        left_wrist_y = 1.0
+        left_shoulder_y = 0.5
+        right_wrist_y = 1.0
+        right_shoulder_y = 0.5
+
     return {
         "left_elbow": get_left_elbow_angle(landmarks),
         "right_elbow": get_right_elbow_angle(landmarks),
         "left_knee": get_left_knee_angle(landmarks),
         "right_knee": get_right_knee_angle(landmarks),
         "head_alignment": get_head_alignment(landmarks),
+        "spine_tilt": get_spine_tilt(landmarks),
+        "left_wrist_y": left_wrist_y,
+        "left_shoulder_y": left_shoulder_y,
+        "right_wrist_y": right_wrist_y,
+        "right_shoulder_y": right_shoulder_y,
     }
 
 

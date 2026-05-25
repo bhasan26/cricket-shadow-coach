@@ -48,8 +48,12 @@ async function initPose() {
       locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/${file}`,
     });
 
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const complexity = isMobile ? 0 : 1;
+    console.log(`Dynamically setting MediaPipe modelComplexity to ${complexity} (isMobile: ${isMobile})`);
+
     pose.setOptions({
-      modelComplexity: 1,
+      modelComplexity: complexity,
       smoothLandmarks: true,
       minDetectionConfidence: 0.5,
       minTrackingConfidence: 0.5,

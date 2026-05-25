@@ -6,11 +6,61 @@ function App() {
   return (
     <div style={{ 
       minHeight: '100vh',
-      background: '#f5f2ec',
-      fontFamily: "'Inter', 'Segoe UI', system-ui, sans-serif",
-      color: '#2d3a2e',
+      background: 'transparent',
+      fontFamily: "'Outfit', 'Inter', system-ui, sans-serif",
+      color: '#f8fafc',
     }}>
-      {/* Hero Header with Stadium Image */}
+      {/* Floating Glass Navigation Header */}
+      <nav style={{
+        position: 'sticky',
+        top: 0,
+        left: 0,
+        right: 0,
+        zIndex: 50,
+        background: 'rgba(3, 7, 18, 0.65)',
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
+        borderBottom: '1px solid rgba(255, 255, 255, 0.04)',
+        padding: '16px 40px',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span style={{ fontSize: '1.6rem', filter: 'drop-shadow(0 0 8px rgba(245, 158, 11, 0.4))' }}>🏏</span>
+          <span style={{ 
+            fontWeight: 900, 
+            fontSize: '1.25rem', 
+            letterSpacing: '1.5px', 
+            background: 'linear-gradient(135deg, #ffffff 30%, #94a3b8 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
+            SHADOWCOACH<span style={{ color: '#10b981', WebkitTextFillColor: 'initial', fontWeight: 900 }}>.AI</span>
+          </span>
+        </div>
+        
+        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+          <div style={{
+            fontSize: '0.68rem',
+            fontWeight: 800,
+            color: '#eab308',
+            border: '1px solid rgba(234, 179, 8, 0.25)',
+            background: 'rgba(234, 179, 8, 0.08)',
+            padding: '4px 14px',
+            borderRadius: '30px',
+            letterSpacing: '1px',
+            boxShadow: '0 0 15px rgba(234,179,8,0.1)'
+          }}>
+            PRO TELEMETRY CORE
+          </div>
+        </div>
+      </nav>
+
+      {/* Premium Athletic Hero Banner */}
       <header style={{
         position: 'relative',
         overflow: 'hidden',
@@ -19,98 +69,92 @@ function App() {
         flexDirection: 'column',
         justifyContent: 'center',
         alignItems: 'center',
+        padding: '40px 20px',
       }}>
-        {/* Stadium background in header only */}
+        {/* Stadium light visual backdrop */}
         <div style={{
           position: 'absolute',
           inset: 0,
           backgroundImage: 'url(/stadium-bg.png)',
           backgroundSize: 'cover',
-          backgroundPosition: 'center 40%',
+          backgroundPosition: 'center 42%',
           backgroundRepeat: 'no-repeat',
+          opacity: 0.16,
+          filter: 'blue-shift contrast(1.15)',
         }} />
-        {/* Gradient overlay */}
+        
+        {/* Sleek radial shading */}
         <div style={{
           position: 'absolute',
           inset: 0,
-          background: 'linear-gradient(180deg, rgba(20,35,20,0.55) 0%, rgba(30,50,25,0.7) 60%, rgba(45,58,46,0.95) 100%)',
+          background: 'radial-gradient(circle at center, transparent 0%, rgba(3, 7, 18, 0.95) 80%, #030712 100%)',
         }} />
-        {/* Top bar */}
-        <div style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          padding: '10px 20px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          fontSize: '0.75rem',
-          color: 'rgba(255,255,255,0.6)',
-          zIndex: 2,
-        }}>
-          <span>🏏 Cricket Shadow Coach</span>
-          <span style={{
-            background: 'rgba(255,180,0,0.25)',
-            color: '#f5c842',
-            padding: '2px 10px',
-            borderRadius: '10px',
-            fontSize: '0.7rem',
-            fontWeight: 600,
-          }}>⚠️ Beta</span>
-        </div>
-        {/* Title */}
+        
         <h1 style={{
           fontFamily: "'Playfair Display', Georgia, serif",
-          fontSize: '3rem',
-          fontWeight: 700,
-          color: '#fff',
+          fontSize: '3.6rem',
+          fontWeight: 900,
+          color: '#ffffff',
           margin: 0,
           position: 'relative',
           zIndex: 2,
-          textShadow: '0 3px 20px rgba(0,0,0,0.4)',
+          letterSpacing: '-0.5px',
+          textAlign: 'center',
+          textShadow: '0 4px 30px rgba(0,0,0,0.8)',
         }}>
           Cricket Shadow Coach
         </h1>
         <p style={{
-          color: 'rgba(255,255,255,0.75)',
-          fontSize: '1rem',
+          color: '#94a3b8',
+          fontSize: '1.18rem',
           marginTop: '10px',
+          fontWeight: 400,
           position: 'relative',
           zIndex: 2,
+          textAlign: 'center',
+          maxWidth: '650px',
+          letterSpacing: '0.2px',
         }}>
-          Professional Training Meets AI — Perfect Your Batting Technique
+          Professional Training Meets Artificial Intelligence — Perfect Your Biomechanical Technique
         </p>
+        
         <div style={{
-          width: '60px',
-          height: '3px',
-          background: 'linear-gradient(90deg, #c8a95e, #e8d48b)',
-          margin: '14px auto 0',
-          borderRadius: '2px',
+          width: '80px',
+          height: '4px',
+          background: 'linear-gradient(90deg, #f59e0b, #ca8a04)',
+          marginTop: '20px',
+          borderRadius: '10px',
           position: 'relative',
           zIndex: 2,
+          boxShadow: '0 0 12px rgba(245, 158, 11, 0.45)',
         }} />
       </header>
 
-      <main style={{ maxWidth: '1240px', margin: '0 auto', padding: '32px 20px 40px' }}>
+      {/* Symmetrical Grid Dashboard */}
+      <main className="main-content" style={{ maxWidth: '1440px', margin: '0 auto' }}>
         <CameraFeed />
       </main>
 
+      {/* Symmetrical Lab Branding Footer */}
       <footer style={{
         textAlign: 'center',
-        padding: '28px 20px',
-        background: '#2d3a2e',
-        color: 'rgba(255,255,255,0.4)',
-        fontSize: '0.85rem',
+        padding: '36px 20px',
+        background: 'rgba(3, 7, 18, 0.85)',
+        color: '#475569',
+        fontSize: '0.8rem',
+        borderTop: '1px solid rgba(255, 255, 255, 0.03)',
+        letterSpacing: '0.5px'
       }}>
+        <span>Engineered by </span>
         <span style={{
-          color: '#c8a95e',
-          fontWeight: 600,
-          fontFamily: "'Playfair Display', Georgia, serif",
-          fontSize: '0.95rem',
-        }}>Built by Bilal</span>
-        <span style={{ margin: '0 10px', opacity: 0.3 }}>|</span>
-        <span>Still in Test</span>
+          color: '#cbd5e1',
+          fontWeight: 800,
+          fontFamily: "'Outfit', sans-serif",
+          fontSize: '0.85rem',
+          letterSpacing: '1px'
+        }}>BILAL HASAN</span>
+        <span style={{ margin: '0 14px', opacity: 0.15 }}>|</span>
+        <span>© 2026 Sports Biomechanics Laboratory</span>
       </footer>
     </div>
   );

@@ -162,6 +162,140 @@ def calculate_shot_score(angles, ideal_angles=None, shot_type="cover_drive"):
     return float(score)
 
 
+def evaluate_bowling_action(angle_sequence):
+    """
+    Evaluate a bowling action sequence for compliance with ICC Rule 11.1.
+    
+    1. Identify the bowling arm (left vs. right elbow with largest motion/variance).
+    2. Filter frames where the wrist is above shoulder level (wrist_y < shoulder_y).
+       In MediaPipe, y decreases upwards, so wrist_y < shoulder_y means hand is raised.
+    3. Calculate maximum elbow extension (straightening) during this delivery phase:
+       Elbow extension = max_elbow_angle - min_elbow_angle
+    4. If the extension exceeds 15 degrees, it's illegal (chucking).
+    """
+    if len(angle_sequence) < 3:
+        return {
+            "score": 10,
+            "feedback": "Too few frames captured — please record a full bowling action.",
+            "is_good_shot": False,
+            "shot_type": "bowling_action",
+            "shot_name": "Bowling Action Check",
+            "angle_scores": {}
+        }
+        
+    # Step 1: Detect the bowling arm
+    left_elbows = [f.get("left_elbow", 0) for f in angle_sequence if f.get("left_elbow", 0) > 0]
+    right_elbows = [f.get("right_elbow", 0) for f in angle_sequence if f.get("right_elbow", 0) > 0]
+    
+    if not left_elbows and not right_elbows:
+        return {
+            "score": 10,
+            "feedback": "No arm joints detected. Ensure your full body is visible in the camera.",
+            "is_good_shot": False,
+            "shot_type": "bowling_action",
+            "shot_name": "Bowling Action Check",
+            "angle_scores": {}
+        }
+        
+    left_var = np.var(left_elbows) if len(left_elbows) > 1 else 0
+    right_var = np.var(right_elbows) if len(right_elbows) > 1 else 0
+    
+    is_right_handed = right_var >= left_var
+    arm_key = "right_elbow" if is_right_handed else "left_elbow"
+    arm_name = "Right-Arm" if is_right_handed else "Left-Arm"
+    
+    # Step 2: Extract delivery phase frames (wrist Y < shoulder Y)
+    delivery_frames = []
+    wrist_y_key = "right_wrist_y" if is_right_handed else "left_wrist_y"
+    shoulder_y_key = "right_shoulder_y" if is_right_handed else "left_shoulder_y"
+    
+    for f in angle_sequence:
+        wrist_y = f.get(wrist_y_key, 1.0)
+        shoulder_y = f.get(shoulder_y_key, 0.5)
+        # In MediaPipe y coordinate, 0 is at top, so wrist_y < shoulder_y means wrist is higher
+        if wrist_y < shoulder_y:
+            elbow_val = f.get(arm_key, 0)
+            if elbow_val > 0:
+                delivery_frames.append(elbow_val)
+                
+    # Fallback: if we didn't detect the hand above shoulder, use all frames
+    if not delivery_frames:
+        delivery_frames = [f.get(arm_key, 0) for f in angle_sequence if f.get(arm_key, 0) > 0]
+        
+    if len(delivery_frames) < 2:
+        return {
+            "score": 20,
+            "feedback": f"Could not isolate delivery swing for {arm_name} bowler. Start with hands low and swing fully above your shoulder.",
+            "is_good_shot": False,
+            "shot_type": "bowling_action",
+            "shot_name": "Bowling Action Check",
+            "angle_scores": {}
+        }
+        
+    # Step 3: Measure elbow extension
+    min_elbow = min(delivery_frames)
+    max_elbow = max(delivery_frames)
+    
+    elbow_extension = max_elbow - min_elbow
+    elbow_extension = max(0.0, min(180.0, elbow_extension))
+    
+    spine_tilts = [f.get("spine_tilt", 0) for f in angle_sequence if f.get("spine_tilt", 0) > 0]
+    avg_spine_tilt = np.mean(spine_tilts) if spine_tilts else 0.0
+    
+    front_knee_key = "left_knee" if is_right_handed else "right_knee"
+    front_knees = [f.get(front_knee_key, 0) for f in angle_sequence if f.get(front_knee_key, 0) > 0]
+    avg_front_knee = np.mean(front_knees[-5:]) if len(front_knees) >= 5 else 180.0
+    
+    # Step 4: Compare against ICC Rule 11.1 15-degree threshold
+    is_legal = elbow_extension <= 15.0
+    
+    if is_legal:
+        score = int(round(100 - (elbow_extension * 1.5)))
+        score = max(80, min(100, score))
+        verdict = f"✅ LEGAL ACTION ({arm_name})"
+        feedback = (
+            f"{verdict} | Excellent! Your bowling elbow extension was {elbow_extension:.1f}°, "
+            f"well within the official ICC Rule 11.1 15° limit (went from {min_elbow:.1f}° to {max_elbow:.1f}°). "
+            f"Smooth release with perfect straight-arm discipline."
+        )
+    else:
+        score = int(round(100 - (elbow_extension - 15.0) * 4.0))
+        score = max(10, min(55, score))
+        verdict = f"⚠️ ILLEGAL ACTION (Chucking / Throwing)"
+        feedback = (
+            f"{verdict} | Under ICC Rule 11.1, elbow extension must be under 15°. "
+            f"Your action showed an extension of {elbow_extension:.1f}° (from {min_elbow:.1f}° to {max_elbow:.1f}°), "
+            f"which is an illegal throw. Keep your arm locked and rotate from the shoulder."
+        )
+        
+    coaching_tips = []
+    if avg_spine_tilt > 25:
+        coaching_tips.append("Leaning too far laterally — keep your head upright at release for balance.")
+    if avg_front_knee < 125:
+        coaching_tips.append("Front knee collapsed too much — brace your front leg for more power and height.")
+    elif avg_front_knee > 165:
+        coaching_tips.append("Braced front knee is nice and straight, yielding maximum release height.")
+        
+    if coaching_tips:
+        feedback += " Coaching tips: " + " ".join(coaching_tips[:2])
+        
+    angle_scores = {
+        "bowling_arm_extension": float(elbow_extension),
+        "min_elbow_angle": float(min_elbow),
+        "max_elbow_angle": float(max_elbow),
+        "spine_tilt": float(avg_spine_tilt)
+    }
+    
+    return {
+        "score": score,
+        "feedback": feedback,
+        "is_good_shot": is_legal,
+        "shot_type": "bowling_action",
+        "shot_name": "Bowling Action Check",
+        "angle_scores": angle_scores
+    }
+
+
 def calculate_sequence_score(angle_sequence, shot_type="cover_drive"):
     """
     Calculate score for an entire shot sequence.
@@ -175,6 +309,9 @@ def calculate_sequence_score(angle_sequence, shot_type="cover_drive"):
             "feedback": "No data captured",
             "matches": 0,
         }
+        
+    if shot_type == "bowling_action":
+        return evaluate_bowling_action(angle_sequence)
     
     shot_name = get_shot_name(shot_type)
     ideal_seq = get_ideal_angle_sequence(shot_type)
