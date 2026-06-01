@@ -1,31 +1,82 @@
 /* Symmetrical Cyberpunk-Luxury Dashboard Widgets & Telemetry Dials */
 
-.dashboard-container {
+.dashboard-journey {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.main-journey-grid {
   display: grid;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-template-columns: 65% calc(35% - 32px);
   gap: 32px;
   align-items: start;
 }
 
-.center-cockpit {
-  grid-column: span 8;
+.step-header {
   display: flex;
-  flex-direction: column;
-  gap: 24px;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
 }
 
-.center-cockpit-grid {
+.step-number {
+  font-family: 'Chakra Petch', monospace;
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: rgba(148, 163, 184, 0.4);
+}
+
+.step-header h2 {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #f8fafc;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  margin: 0;
+}
+
+.drills-grid {
   display: grid;
-  grid-template-columns: 1.6fr 1fr;
-  gap: 24px;
-  align-items: stretch;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
 }
 
-.right-diagnostics {
-  grid-column: span 4;
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
+.telemetry-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.telemetry-grid-full {
+  grid-column: span 2;
+  margin-top: -8px;
+}
+
+.camera-container {
+  position: relative;
+  border-radius: 24px;
+  overflow: hidden;
+  background: #020617;
+  aspect-ratio: 4/3;
+  max-height: 420px;
+  width: 100%;
+}
+.camera-container video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1);
+}
+.camera-container canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  transform: scaleX(-1);
 }
 
 /* Symmetrical high-tech corner tech brackets for premium cards */
@@ -50,50 +101,22 @@
   transform: translate(0, 0);
 }
 
-@media (max-width: 1300px) {
-  .dashboard-container {
-    gap: 24px;
-  }
-}
-
 @media (max-width: 1200px) {
-  .dashboard-container {
-    grid-template-columns: repeat(12, minmax(0, 1fr));
-    gap: 24px;
-  }
-  
-  .center-cockpit {
-    grid-column: span 12;
-  }
-  
-  .center-cockpit-grid {
+  .main-journey-grid {
     grid-template-columns: 1fr;
-    gap: 20px;
   }
-  
-  .right-diagnostics {
-    grid-column: span 12;
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 24px;
+  .drills-grid {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 
 @media (max-width: 900px) {
-  .dashboard-container {
+  .main-journey-grid {
     grid-template-columns: 1fr;
     gap: 20px;
   }
-  
-  .center-cockpit, .right-diagnostics {
-    grid-column: span 1;
-    flex-direction: column;
-  }
-  
-  .right-diagnostics {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
+  .drills-grid {
+    grid-template-columns: 1fr;
   }
 
   /* Mobile App Shell & Tabs */
@@ -282,15 +305,15 @@
 }
 
 .shot-card-btn.active {
-  background: linear-gradient(135deg, rgba(0, 245, 160, 0.08) 0%, rgba(0, 229, 255, 0.02) 100%);
-  border-color: rgba(0, 245, 160, 0.35);
+  background: linear-gradient(135deg, rgba(0, 245, 160, 0.12) 0%, rgba(0, 229, 255, 0.04) 100%);
+  border: 1.5px solid #00f5a0 !important;
   color: #00f5a0;
-  box-shadow: 0 0 20px rgba(0, 245, 160, 0.06);
+  box-shadow: 0 0 25px rgba(0, 245, 160, 0.18);
 }
 
 .shot-card-btn.active::before {
   background: #00f5a0;
-  box-shadow: 0 0 10px #00f5a0;
+  box-shadow: 0 0 12px #00f5a0;
 }
 
 /* Glowing digital telemetry progress bars */
@@ -313,12 +336,12 @@
 
 /* Symmetrical Responsive padding wrapper */
 .main-content {
-  padding: 10px 40px 80px;
+  padding: 10px 40px 24px;
 }
 
 @media (max-width: 1024px) {
   .main-content {
-    padding: 10px 24px 60px;
+    padding: 10px 24px 24px;
   }
 }
 
