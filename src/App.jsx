@@ -216,7 +216,7 @@ function App() {
           textTransform: 'uppercase',
           fontFamily: "'Plus Jakarta Sans', sans-serif"
         }}>
-          Biomechanical AI Motion Capture & Sequence diagnostics
+          Stand in front of your camera and play a shot — the AI will analyse your technique in real time.
         </p>
         
         <div style={{

@@ -610,8 +610,11 @@ function CameraFeed() {
           {/* Hands-Free Auto-Record Toggle */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '24px', paddingTop: '20px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
             <div>
-              <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#f8fafc' }}>🤖 Auto-Record (Hands-free)</div>
-              <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '2px' }}>Triggers countdown in stance</div>
+              <div style={{ fontSize: '14px', fontWeight: 800, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <svg width="18" height="18" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="#00f5a0"><path strokeLinecap="round" strokeLinejoin="round" d="m15.75 10.5 4.72-4.72a.75.75 0 0 1 1.28.53v11.38a.75.75 0 0 1-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25Z" /></svg>
+                Auto-Record (Hands-free)
+              </div>
+              <div style={{ fontSize: '13px', color: '#cbd5e1', marginTop: '4px' }}>Triggers countdown in stance</div>
             </div>
             <button
               onClick={() => {
@@ -639,8 +642,11 @@ function CameraFeed() {
           {/* Pro-Mirror blueprint Toggle */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '24px' }}>
             <div>
-              <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#f8fafc' }}>👻 Pro-Mirror (Ghost Overlay)</div>
-              <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '2px' }}>Overlays standard layout blueprints</div>
+              <div style={{ fontSize: '14px', fontWeight: 800, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <svg width="18" height="18" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="#00e5ff"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" /></svg>
+                Pro-Mirror (Ghost Overlay)
+              </div>
+              <div style={{ fontSize: '13px', color: '#cbd5e1', marginTop: '4px' }}>Overlays standard layout blueprints</div>
             </div>
             <button
               onClick={() => {
