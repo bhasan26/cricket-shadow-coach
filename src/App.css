@@ -171,18 +171,28 @@
 
 /* Fix Top Nav on Mobile */
 @media (max-width: 600px) {
+  .top-nav-wrapper {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
   .top-nav-buttons {
-    flex-direction: column;
-    width: 100%;
-    gap: 8px;
+    flex-direction: column !important;
+    width: 100% !important;
+    gap: 8px !important;
   }
   .top-nav-buttons button {
-    width: 100%;
+    width: 100% !important;
+    justify-content: center !important;
   }
   .app-header {
-    flex-direction: column;
-    gap: 16px;
+    flex-direction: column !important;
+    gap: 16px !important;
     padding: 16px !important;
+  }
+  .brand-text-container {
+    flex-wrap: wrap !important;
+    justify-content: center !important;
+    text-align: center !important;
   }
 }
 

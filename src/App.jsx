@@ -35,15 +35,16 @@ function App() {
         alignItems: 'center'
       }}>
         <div 
+          className="brand-text-container"
           onClick={() => setActiveTab('home')}
-          style={{ display: 'flex', alignItems: 'center', gap: '16px', cursor: 'pointer' }}
+          style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}
         >
           <img 
             src="/logo.png" 
             alt="Biotech AI Logo" 
             style={{ 
-              width: '44px', 
-              height: '44px', 
+              width: '40px', 
+              height: '40px', 
               borderRadius: '10px', 
               border: '1px solid rgba(0, 245, 160, 0.35)', 
               boxShadow: '0 0 12px rgba(0, 245, 160, 0.25)' 
@@ -51,21 +52,22 @@ function App() {
           />
           <span style={{ 
             fontWeight: 900, 
-            fontSize: '1.3rem', 
-            letterSpacing: '2px', 
+            fontSize: 'clamp(1.1rem, 3.5vw, 1.3rem)', 
+            letterSpacing: '1px', 
             background: 'linear-gradient(135deg, #ffffff 40%, #94a3b8 100%)',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
             display: 'flex',
             alignItems: 'center',
-            gap: '8px'
+            flexWrap: 'wrap',
+            gap: '4px'
           }}>
             SHADOWCOACH <span style={{ color: '#00f5a0', WebkitTextFillColor: 'initial', fontWeight: 900 }}>// BIOTECH.AI</span>
           </span>
         </div>
         
-        <div>
-          <div style={{
+        <div className="top-nav-wrapper">
+          <div className="top-nav-buttons" style={{
             display: 'flex',
             gap: '10px',
             background: 'rgba(0, 0, 0, 0.4)',
@@ -173,13 +175,14 @@ function App() {
         {/* Tactical Biotech Coordinator Badge */}
         <span style={{ 
           color: '#00f5a0', 
-          fontSize: '0.68rem', 
+          fontSize: 'clamp(0.55rem, 2vw, 0.68rem)', 
           fontWeight: 900, 
-          letterSpacing: '3.5px', 
+          letterSpacing: '2px', 
           textTransform: 'uppercase', 
           marginBottom: '8px', 
           zIndex: 2, 
           opacity: 0.85,
+          textAlign: 'center',
           fontFamily: "'Chakra Petch', 'JetBrains Mono', monospace",
           textShadow: '0 0 10px rgba(0, 245, 160, 0.3)'
         }}>
@@ -188,13 +191,13 @@ function App() {
         
         <h1 style={{
           fontFamily: "'Chakra Petch', 'Plus Jakarta Sans', system-ui, sans-serif",
-          fontSize: 'clamp(2rem, 5vw, 3.2rem)',
+          fontSize: 'clamp(1.8rem, 7vw, 3.2rem)',
           fontWeight: 900,
           textTransform: 'uppercase',
           margin: 0,
           position: 'relative',
           zIndex: 2,
-          letterSpacing: '4px',
+          letterSpacing: '2px',
           textAlign: 'center',
           background: 'linear-gradient(135deg, #ffffff 40%, #94a3b8 100%)',
           WebkitBackgroundClip: 'text',
@@ -205,14 +208,14 @@ function App() {
         </h1>
         <p style={{
           color: '#cbd5e1',
-          fontSize: '1rem',
-          marginTop: '6px',
+          fontSize: 'clamp(0.85rem, 3.5vw, 1rem)',
+          marginTop: '10px',
           fontWeight: 600,
           position: 'relative',
           zIndex: 2,
           textAlign: 'center',
           maxWidth: '680px',
-          letterSpacing: '0.8px',
+          letterSpacing: '0.5px',
           textTransform: 'uppercase',
           fontFamily: "'Plus Jakarta Sans', sans-serif"
         }}>
