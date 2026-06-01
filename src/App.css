@@ -1,76 +1,160 @@
-/* Professional Cockpit layouts and Sports Tech Styles */
+/* Symmetrical Cyberpunk-Luxury Dashboard Widgets & Telemetry Dials */
 
 .dashboard-container {
   display: grid;
-  grid-template-columns: 1fr 390px;
-  gap: 30px;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 32px;
   align-items: start;
 }
 
-@media (max-width: 1140px) {
+.center-cockpit {
+  grid-column: span 8;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.center-cockpit-grid {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr;
+  gap: 24px;
+  align-items: stretch;
+}
+
+.right-diagnostics {
+  grid-column: span 4;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* Symmetrical high-tech corner tech brackets for premium cards */
+.cyber-card::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 12px;
+  height: 12px;
+  border-right: 2px solid var(--accent-mint, #00f5a0);
+  border-bottom: 2px solid var(--accent-mint, #00f5a0);
+  border-bottom-right-radius: 4px;
+  opacity: 0;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  transform: translate(3px, 3px);
+  pointer-events: none;
+}
+
+.cyber-card:hover::after {
+  opacity: 0.85;
+  transform: translate(0, 0);
+}
+
+@media (max-width: 1300px) {
   .dashboard-container {
-    grid-template-columns: 1fr;
     gap: 24px;
   }
 }
 
-/* high-tech cockpit buttons */
+@media (max-width: 1200px) {
+  .dashboard-container {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: 24px;
+  }
+  
+  .center-cockpit {
+    grid-column: span 12;
+  }
+  
+  .center-cockpit-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  
+  .right-diagnostics {
+    grid-column: span 12;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 24px;
+  }
+}
+
+@media (max-width: 900px) {
+  .dashboard-container {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  
+  .center-cockpit, .right-diagnostics {
+    grid-column: span 1;
+    flex-direction: column;
+  }
+  
+  .right-diagnostics {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+}
+
+/* Tactical Cockpit Command Buttons */
 .btn-primary {
-  background: linear-gradient(135deg, #10b981 0%, #047857 100%);
-  color: #ffffff;
-  border: 1px solid rgba(16, 185, 129, 0.3);
-  box-shadow: 0 4px 20px rgba(16, 185, 129, 0.2);
+  background: linear-gradient(135deg, #00f5a0 0%, #00b876 100%);
+  color: #0b0f19;
+  border: 1px solid rgba(0, 245, 160, 0.4);
+  box-shadow: 0 4px 20px rgba(0, 245, 160, 0.25);
+  font-weight: 800;
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: linear-gradient(135deg, #059669 0%, #064e3b 100%);
+  background: linear-gradient(135deg, #33f7b3 0%, #009962 100%);
   transform: translateY(-2px);
-  border-color: rgba(16, 185, 129, 0.6);
-  box-shadow: 0 8px 25px rgba(16, 185, 129, 0.35);
+  border-color: rgba(0, 245, 160, 0.7);
+  box-shadow: 0 8px 30px rgba(0, 245, 160, 0.4);
 }
 
 .btn-warning {
-  background: linear-gradient(135deg, #f59e0b 0%, #ca8a04 100%);
-  color: #030712;
-  border: 1px solid rgba(245, 158, 11, 0.4);
-  box-shadow: 0 4px 20px rgba(245, 158, 11, 0.2);
+  background: linear-gradient(135deg, #ff9f0d 0%, #d47e00 100%);
+  color: #0b0f19;
+  border: 1px solid rgba(255, 159, 13, 0.45);
+  box-shadow: 0 4px 20px rgba(255, 159, 13, 0.25);
   font-weight: 800;
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .btn-warning:hover:not(:disabled) {
-  background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
-  color: #ffffff;
+  background: linear-gradient(135deg, #ffb23e 0%, #b86d00 100%);
   transform: translateY(-2px);
-  border-color: rgba(245, 158, 11, 0.7);
-  box-shadow: 0 8px 25px rgba(245, 158, 11, 0.35);
+  border-color: rgba(255, 159, 13, 0.7);
+  box-shadow: 0 8px 30px rgba(255, 159, 13, 0.4);
 }
 
 .btn-danger {
-  background: linear-gradient(135deg, #f43f5e 0%, #be123c 100%);
+  background: linear-gradient(135deg, #ff3366 0%, #cc0033 100%);
   color: #ffffff;
-  border: 1px solid rgba(244, 63, 94, 0.3);
-  box-shadow: 0 4px 20px rgba(244, 63, 94, 0.18);
+  border: 1px solid rgba(255, 51, 102, 0.4);
+  box-shadow: 0 4px 20px rgba(255, 51, 102, 0.22);
+  font-weight: 800;
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .btn-danger:hover:not(:disabled) {
-  background: linear-gradient(135deg, #e11d48 0%, #9f1239 100%);
+  background: linear-gradient(135deg, #ff5c85 0%, #aa002b 100%);
   transform: translateY(-2px);
-  border-color: rgba(244, 63, 94, 0.6);
-  box-shadow: 0 8px 25px rgba(244, 63, 94, 0.3);
+  border-color: rgba(255, 51, 102, 0.7);
+  box-shadow: 0 8px 30px rgba(255, 51, 102, 0.35);
 }
 
-/* Symmetrical Skill Drill Cards */
+/* Symmetrical Tactical Skill Cards */
 .shot-card-btn {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 16px 20px;
-  border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.04);
-  background: rgba(15, 23, 42, 0.4);
+  gap: 18px;
+  padding: 18px 24px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  background: rgba(15, 23, 42, 0.45);
   color: #94a3b8;
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -85,7 +169,7 @@
   position: absolute;
   top: 0;
   left: 0;
-  width: 4px;
+  width: 4.5px;
   height: 100%;
   background: transparent;
   transition: background-color 0.25s;
@@ -93,74 +177,42 @@
 
 .shot-card-btn:hover:not(:disabled) {
   background: rgba(30, 41, 59, 0.45);
-  border-color: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.08);
   color: #f8fafc;
   transform: translateX(4px);
 }
 
 .shot-card-btn.active {
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(6, 78, 59, 0.03) 100%);
-  border-color: rgba(16, 185, 129, 0.35);
-  color: #10b981;
-  box-shadow: 0 0 20px rgba(16, 185, 129, 0.08);
+  background: linear-gradient(135deg, rgba(0, 245, 160, 0.08) 0%, rgba(0, 229, 255, 0.02) 100%);
+  border-color: rgba(0, 245, 160, 0.35);
+  color: #00f5a0;
+  box-shadow: 0 0 20px rgba(0, 245, 160, 0.06);
 }
 
 .shot-card-btn.active::before {
-  background: #10b981;
+  background: #00f5a0;
+  box-shadow: 0 0 10px #00f5a0;
 }
 
-/* Glowing high-performance gauges */
+/* Glowing digital telemetry progress bars */
 .gauge-bar {
-  height: 8px;
+  height: 9px;
   border-radius: 4px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255,255,255,0.02);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.02);
   overflow: hidden;
   position: relative;
-  box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.6);
 }
 
 .gauge-fill {
   height: 100%;
   border-radius: 4px;
-  transition: width 0.8s cubic-bezier(0.2, 0.8, 0.2, 1), background-color 0.3s;
-  box-shadow: 0 0 8px rgba(255, 255, 255, 0.2);
+  transition: width 0.8s cubic-bezier(0.25, 1, 0.5, 1), background-color 0.3s;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.15);
 }
 
-/* Status light badges */
-.status-indicator-badge {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.72rem;
-  font-weight: 700;
-  color: #cbd5e1;
-  padding: 6px 14px;
-  border-radius: 30px;
-  background: rgba(30, 41, 59, 0.45);
-  border: 1px solid rgba(255, 255, 255, 0.04);
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-}
-
-.status-dot {
-  width: 6.5px;
-  height: 6.5px;
-  border-radius: 50%;
-  display: inline-block;
-}
-
-.status-dot.active {
-  background: #10b981;
-  box-shadow: 0 0 10px #10b981;
-}
-
-.status-dot.inactive {
-  background: #f43f5e;
-  box-shadow: 0 0 10px #f43f5e;
-}
-
-/* Symmetrical Responsive padding wrapper for main canvas grid */
+/* Symmetrical Responsive padding wrapper */
 .main-content {
   padding: 10px 40px 80px;
 }
@@ -173,7 +225,52 @@
 
 @media (max-width: 640px) {
   .main-content {
-    padding: 10px 12px 40px;
+    padding: 10px 14px 40px;
   }
 }
 
+/* Status lights */
+.status-indicator-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #cbd5e1;
+  padding: 8px 16px;
+  border-radius: 30px;
+  background: rgba(15, 23, 42, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.status-dot.active {
+  background: #00f5a0;
+  box-shadow: 0 0 12px #00f5a0;
+}
+
+.status-dot.inactive {
+  background: #ff3366;
+  box-shadow: 0 0 12px #ff3366;
+}
+
+/* Glow texts */
+.glow-text-mint {
+  text-shadow: 0 0 12px rgba(0, 245, 160, 0.45);
+}
+
+.glow-text-amber {
+  text-shadow: 0 0 12px rgba(255, 159, 13, 0.45);
+}
+
+.glow-text-pink {
+  text-shadow: 0 0 12px rgba(255, 51, 102, 0.45);
+}

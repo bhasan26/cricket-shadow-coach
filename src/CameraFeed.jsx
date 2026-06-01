@@ -16,6 +16,16 @@ import {
 const STABILITY_BUFFER_SIZE = 15;
 const STABILITY_THRESHOLD = 2.0;
 
+// Nano Banana Bot custom AI-generated icon assets mapper
+const NANO_ICONS = {
+  cover_drive: '/cover-drive-nano.png',
+  straight_drive: '/straight-drive-nano.png',
+  pull_shot: '/pull-shot-nano.png',
+  defensive_block: '/defensive-block-nano.png',
+  flick_shot: '/flick-shot-nano.png',
+  bowling_action: '/bowling-action-nano.png'
+};
+
 function CameraFeed() {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -212,10 +222,10 @@ function CameraFeed() {
         if (lm && (lm.visibility === undefined || lm.visibility > 0.45)) {
           ctx.beginPath();
           ctx.arc(lm.x * canvas.width, lm.y * canvas.height, 5, 0, Math.PI * 2);
-          ctx.fillStyle = '#f59e0b';
+          ctx.fillStyle = '#ff9f0d';
           ctx.strokeStyle = '#ffffff';
           ctx.lineWidth = 1.5;
-          ctx.shadowColor = '#f59e0b';
+          ctx.shadowColor = '#ff9f0d';
           ctx.shadowBlur = 10;
           ctx.fill();
           ctx.stroke();
@@ -373,21 +383,21 @@ function CameraFeed() {
 
   const getGaugeColor = (type, val) => {
     if (type.includes('elbow')) {
-      if (val >= 145 && val <= 175) return '#10b981';
-      if (val >= 130 && val <= 180) return '#f59e0b';
-      return '#ef4444';
+      if (val >= 145 && val <= 175) return '#00f5a0'; // Electric Mint Green
+      if (val >= 130 && val <= 180) return '#ff9f0d'; // Amber
+      return '#ff3366'; // Pink
     }
     if (type.includes('knee')) {
-      if (val >= 120 && val <= 150) return '#10b981';
-      if (val >= 110 && val <= 165) return '#f59e0b';
-      return '#ef4444';
+      if (val >= 120 && val <= 150) return '#00f5a0';
+      if (val >= 110 && val <= 165) return '#ff9f0d';
+      return '#ff3366';
     }
     if (type === 'spine') {
-      if (val >= 5 && val <= 22) return '#10b981';
-      if (val >= 0 && val <= 32) return '#f59e0b';
-      return '#ef4444';
+      if (val >= 5 && val <= 22) return '#00f5a0';
+      if (val >= 0 && val <= 32) return '#ff9f0d';
+      return '#ff3366';
     }
-    return '#10b981';
+    return '#00f5a0';
   };
 
   const renderGauge = (label, val, maxVal, type, targetRange) => {
@@ -397,137 +407,195 @@ function CameraFeed() {
       <div style={{ marginBottom: '14px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '4px' }}>
           <span style={{ color: '#94a3b8', fontWeight: 500 }}>{label}</span>
-          <span style={{ color: color, fontWeight: 700 }}>{val}° <span style={{ fontSize: '0.7rem', color: '#475569', fontWeight: 400 }}>({targetRange})</span></span>
+          <span className="mono-telemetry" style={{ color: color, fontWeight: 700 }}>
+            {val}° <span style={{ fontSize: '0.7rem', color: '#475569', fontWeight: 400 }}>({targetRange})</span>
+          </span>
         </div>
         <div className="gauge-bar">
-          <div className="gauge-fill" style={{ width: `${percentage}%`, backgroundColor: color }} />
+          <div className="gauge-fill" style={{ width: `${percentage}%`, backgroundColor: color, boxShadow: `0 0 10px ${color}35` }} />
         </div>
       </div>
     );
   };
 
-  // Symmetrical state colors for HUD Banners
   const getHudBannerColor = () => {
-    if (hudStateLabel.includes('GET READY') || hudStateLabel.includes('HOLD')) return 'rgba(245, 158, 11, 0.9)'; // Golden Orange
-    if (hudStateLabel.includes('PLAY')) return 'rgba(16, 185, 129, 0.95)'; // Neon Green
-    return 'rgba(15, 23, 42, 0.85)'; // Slate
+    if (hudStateLabel.includes('GET READY') || hudStateLabel.includes('HOLD')) return 'rgba(255, 159, 13, 0.9)'; 
+    if (hudStateLabel.includes('PLAY')) return 'rgba(0, 245, 160, 0.95)'; 
+    return 'rgba(15, 23, 42, 0.85)';
+  };
+
+  const getHudTextShadow = () => {
+    if (hudStateLabel.includes('GET READY') || hudStateLabel.includes('HOLD')) return 'rgba(255, 159, 13, 0.4)'; 
+    if (hudStateLabel.includes('PLAY')) return 'rgba(0, 245, 160, 0.4)'; 
+    return 'rgba(0, 0, 0, 0.4)';
   };
 
   return (
     <div className="dashboard-container">
-      {/* Symmetrical Cockpit Video Panel */}
-      <div>
-        <div style={{
-          position: 'relative',
-          borderRadius: '24px',
-          overflow: 'hidden',
-          background: '#020617',
-          border: isRecording ? '2.5px solid #ef4444' : '2.5px solid #10b981',
-          boxShadow: isRecording ? '0 0 25px rgba(239, 68, 68, 0.25)' : '0 0 25px rgba(16, 185, 129, 0.15)',
-          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-        }}>
-          <video ref={videoRef} autoPlay muted playsInline style={{ display: 'block', width: '100%', height: 'auto', transform: 'scaleX(-1)' }} />
-          <canvas ref={canvasRef} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', transform: 'scaleX(-1)' }} />
-          
-          {/* F1-Style Auto-Record Header Status */}
-          {autoRecordEnabled && !isRecording && (
+      {/* Center Cockpit: Video Live Stream & Gauges Panel (Taking up 8 Columns) */}
+      <div className="center-cockpit">
+        <div className="center-cockpit-grid">
+          {/* Left: Interactive Video Cockpit Screen */}
+          <div>
             <div style={{
-              position: 'absolute', top: '20px', left: '20px',
-              background: getHudBannerColor(),
-              backdropFilter: 'blur(12px)',
-              WebkitBackdropFilter: 'blur(12px)',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
-              padding: '10px 20px', borderRadius: '30px',
-              fontSize: '0.78rem', fontWeight: 900, color: '#ffffff',
-              boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
-              display: 'flex', alignItems: 'center', gap: '8px', zIndex: 3,
-              letterSpacing: '1px',
-              transition: 'background-color 0.25s'
+              position: 'relative',
+              borderRadius: '24px',
+              overflow: 'hidden',
+              background: '#020617',
+              border: isRecording ? '2.5px solid #ff3366' : '2.5px solid #00f5a0',
+              boxShadow: isRecording ? '0 0 25px rgba(255, 51, 102, 0.25)' : '0 0 25px rgba(0, 245, 160, 0.15)',
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
             }}>
-              <span className="pulse-record-glow" style={{ width: '8.5px', height: '8.5px', borderRadius: '50%', background: hudStateLabel.includes('PLAY') ? '#10b981' : '#eab308' }} />
-              <span>COCKPIT HUD: {hudStateLabel}</span>
-            </div>
-          )}
+              <video ref={videoRef} autoPlay muted playsInline style={{ display: 'block', width: '100%', height: 'auto', transform: 'scaleX(-1)' }} />
+              <canvas ref={canvasRef} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', transform: 'scaleX(-1)' }} />
+              
+              {/* F1-Style Auto-Record Header Status */}
+              {autoRecordEnabled && !isRecording && (
+                <div style={{
+                  position: 'absolute', top: '20px', left: '20px',
+                  background: getHudBannerColor(),
+                  backdropFilter: 'blur(12px)',
+                  WebkitBackdropFilter: 'blur(12px)',
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                  padding: '10px 20px', borderRadius: '30px',
+                  fontSize: '0.78rem', fontWeight: 900, color: '#ffffff',
+                  boxShadow: `0 8px 24px ${getHudTextShadow()}`,
+                  display: 'flex', alignItems: 'center', gap: '8px', zIndex: 3,
+                  letterSpacing: '1px',
+                  transition: 'background-color 0.25s'
+                }}>
+                  <span className="record-dot-pulse" style={{ width: '8.5px', height: '8.5px', borderRadius: '50%', background: hudStateLabel.includes('PLAY') ? '#00f5a0' : '#ff9f0d' }} />
+                  <span className="mono-telemetry">HUD // {hudStateLabel}</span>
+                </div>
+              )}
 
-          {/* Glowing Red Record Badge */}
-          {isRecording && (
-            <div className="pulse-record-glow" style={{
-              position: 'absolute', top: '20px', left: '20px',
-              display: 'flex', alignItems: 'center', gap: '8px',
-              background: 'rgba(239, 68, 68, 0.95)',
-              padding: '10px 20px', borderRadius: '30px',
-              fontSize: '0.8rem', fontWeight: 800, color: '#fff',
-              boxShadow: '0 8px 24px rgba(239, 68, 68, 0.4)',
-              zIndex: 3,
-              letterSpacing: '1px',
-            }}>
-              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#fff' }} />
-              LIVE TELEMETRY REC • {bufferedFrameCount} FRM
-            </div>
-          )}
+              {/* Glowing Red Record Badge */}
+              {isRecording && (
+                <div className="record-dot-pulse" style={{
+                  position: 'absolute', top: '20px', left: '20px',
+                  display: 'flex', alignItems: 'center', gap: '8px',
+                  background: 'rgba(255, 51, 102, 0.95)',
+                  padding: '10px 20px', borderRadius: '30px',
+                  fontSize: '0.8rem', fontWeight: 800, color: '#fff',
+                  boxShadow: '0 8px 24px rgba(255, 51, 102, 0.4)',
+                  zIndex: 3,
+                  letterSpacing: '1.2px',
+                }}>
+                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#fff' }} />
+                  <span className="mono-telemetry">LIVE TELEMETRY REC • {bufferedFrameCount} FRM</span>
+                </div>
+              )}
 
-          {/* Active Stance Level Tag */}
-          <div style={{
-            position: 'absolute', top: '20px', right: '20px',
-            background: 'rgba(15, 23, 42, 0.85)', 
-            backdropFilter: 'blur(12px)',
-            WebkitBackdropFilter: 'blur(12px)',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
-            padding: '10px 20px', borderRadius: '30px',
-            fontSize: '0.8rem', color: '#f59e0b', fontWeight: 800,
-            boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
-            display: 'flex', alignItems: 'center', gap: '8px',
-            zIndex: 3,
-            letterSpacing: '0.5px'
-          }}>
-            <span style={{ fontSize: '1.2rem' }}>{availableShots[selectedShot]?.emoji}</span>
-            <span>{availableShots[selectedShot]?.name.toUpperCase()}</span>
+              {/* Active Stance Level Tag */}
+              <div style={{
+                position: 'absolute', top: '20px', right: '20px',
+                background: 'rgba(15, 23, 42, 0.85)', 
+                backdropFilter: 'blur(12px)',
+                WebkitBackdropFilter: 'blur(12px)',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                padding: '10px 20px', borderRadius: '30px',
+                fontSize: '0.8rem', color: '#ff9f0d', fontWeight: 800,
+                boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
+                display: 'flex', alignItems: 'center', gap: '8px',
+                zIndex: 3,
+                letterSpacing: '0.8px'
+              }}>
+                <span style={{ fontSize: '1.2rem' }}>{availableShots[selectedShot]?.emoji}</span>
+                <span>{availableShots[selectedShot]?.name.toUpperCase()}</span>
+              </div>
+
+              {/* Viewport Calibrating Overlay */}
+              {!cameraReady && (
+                <div style={{
+                  position: 'absolute', inset: 0,
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                  background: 'rgba(3, 7, 18, 0.97)', color: '#94a3b8', fontSize: '1.1rem',
+                  gap: '16px', zIndex: 5,
+                }}>
+                  <span style={{ fontSize: '3rem', animation: 'spin 3s linear infinite', filter: 'drop-shadow(0 0 15px rgba(0,245,160,0.3))' }}>⚙️</span>
+                  <span style={{ fontWeight: 800, letterSpacing: '2px', textTransform: 'uppercase', fontSize: '0.9rem', color: '#00f5a0', textShadow: '0 0 10px rgba(0,245,160,0.2)' }}>
+                    BOOTING BIOMECHANICAL OPTICAL LAB
+                  </span>
+                </div>
+              )}
+            </div>
+            
+            {/* Statistics Bar */}
+            <div className="mono-telemetry" style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: '#475569', padding: '12px 8px' }}>
+              <span>STREAM STABILITY: 99.8% (32 FPS)</span>
+              <span>TOTAL FRAMES: {frameCount}</span>
+            </div>
           </div>
 
-          {/* Viewport Calibrating Overlay */}
-          {!cameraReady && (
-            <div style={{
-              position: 'absolute', inset: 0,
-              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-              background: 'rgba(3, 7, 18, 0.96)', color: '#94a3b8', fontSize: '1.1rem',
-              gap: '16px', zIndex: 5,
+          {/* Right: Live Telemetry Card (sitting side-by-side with video cockpit) */}
+          <div className="cyber-card" style={{ padding: '24px', display: 'flex', flexDirection: 'column', height: '100%', minHeight: '344px' }}>
+            <h3 style={{
+              margin: '0 0 18px', fontSize: '0.75rem',
+              textTransform: 'uppercase', letterSpacing: '1.5px',
+              color: '#ff9f0d', fontWeight: 800,
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center'
             }}>
-              <span style={{ fontSize: '3rem', animation: 'spin 3s linear infinite', filter: 'drop-shadow(0 0 15px rgba(16,185,129,0.3))' }}>⚙️</span>
-              <span style={{ fontWeight: 600, letterSpacing: '1.5px', textTransform: 'uppercase', fontSize: '0.9rem', color: '#10b981' }}>
-                BOOTING BIOMECHANICAL OPTICAL LAB
-              </span>
-            </div>
-          )}
-        </div>
-        
-        {/* Statistics Bar */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: '#475569', padding: '12px 8px' }}>
-          <span>STREAM STABILITY: 99.8% (32 FPS)</span>
-          <span>TOTAL FRAMES: {frameCount}</span>
+              <span>Live HUD Telemetry</span>
+              <span style={{
+                fontSize: '0.62rem', background: 'rgba(0, 245, 160, 0.12)', color: '#00f5a0',
+                padding: '3px 12px', borderRadius: '20px', textTransform: 'uppercase', letterSpacing: '0.8px',
+                border: '1px solid rgba(0, 245, 160, 0.25)',
+                boxShadow: '0 0 10px rgba(0,245,160,0.1)'
+              }}>Active Feed</span>
+            </h3>
+            
+            {selectedShot === 'bowling_action' ? (
+              <div style={{ display: 'flex', flexDirection: 'column', flex: 1, justifyContent: 'center' }}>
+                {renderGauge('Bowling Arm Elbow', liveRightElbow || liveLeftElbow, 180, 'elbow', '15° Limit')}
+                {renderGauge('Spine Tilt (Balance)', liveSpineTilt, 60, 'spine', 'Target: <22°')}
+                {renderGauge('Brace Leg Knee', liveLeftKnee || liveRightKnee, 180, 'knee', '135°-155°')}
+                <div style={{
+                  marginTop: '12px', padding: '10px 12px', borderRadius: '10px', 
+                  background: 'rgba(8, 14, 27, 0.35)', border: '1px solid rgba(255,255,255,0.03)',
+                  fontSize: '0.74rem', color: '#cbd5e1', lineHeight: 1.3
+                }}>
+                  ℹ️ Keep your arm straight during release. System measures elbow angle change.
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', flex: 1, justifyContent: 'center' }}>
+                {renderGauge('Left Elbow (Front)', liveLeftElbow, 180, 'left_elbow', '150°-170°')}
+                {renderGauge('Right Elbow (Back)', liveRightElbow, 180, 'right_elbow', '155°-175°')}
+                {renderGauge('Left Knee (Front)', liveLeftKnee, 180, 'left_knee', '120°-150°')}
+                {renderGauge('Right Knee (Back)', liveRightKnee, 180, 'right_knee', '125°-155°')}
+                <div style={{ marginTop: '2px' }}>
+                  {renderGauge('Spine Tilt (Torso)', liveSpineTilt, 60, 'spine', '5°-22°')}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Symmetrical Cockpit Control Deck & Sidebar */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      {/* Right Sidebar: Unified Interactive Command & Diagnostics Deck */}
+      <div className="right-diagnostics">
+        {/* Mobile Orientation Alert */}
         {isMobileDevice && (
-          <div className="glass-panel" style={{ 
-            padding: '12px 18px', 
-            background: 'rgba(245, 158, 11, 0.05)', 
-            border: '1px solid rgba(245, 158, 11, 0.2)', 
-            borderRadius: '12px',
+          <div className="cyber-card" style={{ 
+            padding: '14px 18px', 
+            background: 'rgba(255, 159, 13, 0.05)', 
+            border: '1px solid rgba(255, 159, 13, 0.25)', 
+            borderRadius: '16px',
             fontSize: '0.78rem',
-            color: '#f59e0b',
+            color: '#ff9f0d',
             lineHeight: 1.4,
             display: 'flex',
             alignItems: 'center',
-            gap: '8px'
+            gap: '8px',
+            boxShadow: '0 4px 15px rgba(255,159,13,0.06)'
           }}>
             <span style={{ fontSize: '1.25rem' }}>📱</span>
             <span><strong>Rotation Tip:</strong> Turn your device horizontally (landscape) for optimal full-body crease tracking!</span>
           </div>
         )}
+
         {/* Controls Card */}
-        <div className="glass-panel" style={{ padding: '24px' }}>
+        <div className="cyber-card" style={{ padding: '24px' }}>
           <h3 style={{
             margin: '0 0 18px', fontSize: '0.75rem',
             textTransform: 'uppercase', letterSpacing: '1.5px',
@@ -553,13 +621,13 @@ function CameraFeed() {
               }}
               style={{
                 width: '46px', height: '24px', borderRadius: '12px',
-                border: 'none', background: autoRecordEnabled ? '#10b981' : '#1e293b',
+                border: 'none', background: autoRecordEnabled ? '#00f5a0' : '#1e293b',
                 position: 'relative', cursor: 'pointer', transition: 'background-color 0.25s',
-                boxShadow: autoRecordEnabled ? '0 0 10px rgba(16,185,129,0.2)' : 'none'
+                boxShadow: autoRecordEnabled ? '0 0 12px rgba(0,245,160,0.35)' : 'none'
               }}
             >
               <div style={{
-                width: '18px', height: '18px', borderRadius: '50%', background: '#fff',
+                width: '18px', height: '18px', borderRadius: '50%', background: autoRecordEnabled ? '#0b0f19' : '#fff',
                 position: 'absolute', top: '3px', left: autoRecordEnabled ? '25px' : '3px',
                 transition: 'left 0.25s cubic-bezier(0.4, 0, 0.2, 1)'
               }} />
@@ -580,13 +648,13 @@ function CameraFeed() {
               }}
               style={{
                 width: '46px', height: '24px', borderRadius: '12px',
-                border: 'none', background: ghostEnabled ? '#0ea5e9' : '#1e293b',
+                border: 'none', background: ghostEnabled ? '#00e5ff' : '#1e293b',
                 position: 'relative', cursor: 'pointer', transition: 'background-color 0.25s',
-                boxShadow: ghostEnabled ? '0 0 10px rgba(14,165,233,0.2)' : 'none'
+                boxShadow: ghostEnabled ? '0 0 12px rgba(0,229,255,0.35)' : 'none'
               }}
             >
               <div style={{
-                width: '18px', height: '18px', borderRadius: '50%', background: '#fff',
+                width: '18px', height: '18px', borderRadius: '50%', background: ghostEnabled ? '#0b0f19' : '#fff',
                 position: 'absolute', top: '3px', left: ghostEnabled ? '25px' : '3px',
                 transition: 'left 0.25s cubic-bezier(0.4, 0, 0.2, 1)'
               }} />
@@ -594,48 +662,21 @@ function CameraFeed() {
           </div>
         </div>
 
-        {/* Live Telemetry Card */}
-        <div className="glass-panel" style={{ padding: '24px' }}>
-          <h3 style={{
-            margin: '0 0 18px', fontSize: '0.75rem',
-            textTransform: 'uppercase', letterSpacing: '1.5px',
-            color: '#f59e0b', fontWeight: 800,
-            display: 'flex', justifyContent: 'space-between', alignItems: 'center'
-          }}>
-            <span>Live HUD Telemetry</span>
-            <span style={{
-              fontSize: '0.6rem', background: 'rgba(16, 185, 129, 0.12)', color: '#10b981',
-              padding: '2px 10px', borderRadius: '20px', textTransform: 'uppercase', letterSpacing: '0.5px',
-              border: '1px solid rgba(16, 185, 129, 0.2)'
-            }}>Active Feed</span>
-          </h3>
-          
-          {selectedShot === 'bowling_action' ? (
-            <div>
-              {renderGauge('Bowling Arm Elbow', liveRightElbow || liveLeftElbow, 180, 'elbow', '15° Limit')}
-              {renderGauge('Spine Tilt (Balance)', liveSpineTilt, 60, 'spine', 'Target: <22°')}
-              {renderGauge('Brace Leg Knee', liveLeftKnee || liveRightKnee, 180, 'knee', '135°-155°')}
-              <div style={{
-                marginTop: '16px', padding: '14px', borderRadius: '10px', 
-                background: 'rgba(15, 23, 42, 0.3)', border: '1px solid rgba(255,255,255,0.03)',
-                fontSize: '0.76rem', color: '#94a3b8', lineHeight: 1.4
-              }}>
-                ℹ️ <strong>Bowling Action Mode:</strong> Keep your arm straight during release. System measures elbow angle change against the famous 15° chucking rule.
-              </div>
-            </div>
-          ) : (
-            <div>
-              {renderGauge('Left Elbow (Front)', liveLeftElbow, 180, 'left_elbow', '150°-170°')}
-              {renderGauge('Right Elbow (Back)', liveRightElbow, 180, 'right_elbow', '155°-175°')}
-              {renderGauge('Left Knee (Front)', liveLeftKnee, 180, 'left_knee', '120°-150°')}
-              {renderGauge('Right Knee (Back)', liveRightKnee, 180, 'right_knee', '125°-155°')}
-              {renderGauge('Spine Tilt (Torso)', liveSpineTilt, 60, 'spine', '5°-22°')}
-            </div>
-          )}
+        {/* Symmetrical Feedback diagnostics panel */}
+        <div className="cyber-card" style={{ padding: '24px' }}>
+          <Feedback 
+            score={currentScore} 
+            message={currentFeedback} 
+            frameCount={frameCount} 
+            bufferedFrames={bufferedFrameCount} 
+            shotName={lastShotName} 
+            analysisResult={analysisResult}
+            history={history}
+          />
         </div>
 
         {/* Skill Drills Grid */}
-        <div className="glass-panel" style={{ padding: '24px' }}>
+        <div className="cyber-card" style={{ padding: '24px' }}>
           <h3 style={{
             margin: '0 0 18px', fontSize: '0.75rem',
             textTransform: 'uppercase', letterSpacing: '1.5px',
@@ -655,20 +696,44 @@ function CameraFeed() {
                   className={`shot-card-btn ${isSelected ? 'active' : ''}`}
                   style={{ opacity: isRecording ? 0.4 : 1, cursor: isRecording ? 'not-allowed' : 'pointer' }}
                 >
-                  <span style={{ fontSize: '1.8rem', filter: isSelected ? 'drop-shadow(0 0 8px rgba(16,185,129,0.3))' : 'none' }}>{shot.emoji}</span>
+                  <span style={{ 
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '38px',
+                    height: '38px',
+                    borderRadius: '10px',
+                    background: isSelected ? 'rgba(0, 245, 160, 0.1)' : 'rgba(255, 255, 255, 0.02)',
+                    border: isSelected ? '1px solid rgba(0, 245, 160, 0.25)' : '1px solid rgba(255, 255, 255, 0.05)',
+                    overflow: 'hidden',
+                    filter: isSelected ? 'drop-shadow(0 0 8px rgba(0, 245, 160, 0.25))' : 'none',
+                    transition: 'all 0.3s',
+                    flexShrink: 0
+                  }}>
+                    <img 
+                      src={NANO_ICONS[key]} 
+                      alt={shot.name} 
+                      style={{ 
+                        width: '100%', 
+                        height: '100%', 
+                        objectFit: 'cover',
+                        filter: isSelected ? 'none' : 'grayscale(35%) brightness(85%)' 
+                      }} 
+                    />
+                  </span>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 800, fontSize: '0.9rem', color: isSelected ? '#10b981' : '#f8fafc' }}>
+                    <div style={{ fontWeight: 800, fontSize: '0.9rem', color: isSelected ? '#00f5a0' : '#f8fafc' }}>
                       {shot.name}
                     </div>
-                    <div style={{ fontSize: '0.72rem', color: isSelected ? '#34d399' : '#94a3b8', marginTop: '2px', lineHeight: '1.25' }}>
+                    <div style={{ fontSize: '0.72rem', color: isSelected ? '#33f7b3' : '#94a3b8', marginTop: '2.5px', lineHeight: '1.25' }}>
                       {shot.description}
                     </div>
                   </div>
                   <span style={{
                     fontSize: '0.58rem', padding: '4px 8px', borderRadius: '8px', fontWeight: 900,
-                    background: isElite ? 'rgba(244, 63, 94, 0.12)' : 'rgba(245, 158, 11, 0.12)',
-                    color: isElite ? '#f43f5e' : '#f59e0b',
-                    border: isElite ? '1px solid rgba(244, 63, 94, 0.2)' : '1px solid rgba(245, 158, 11, 0.2)',
+                    background: isElite ? 'rgba(255, 51, 102, 0.12)' : 'rgba(255, 159, 13, 0.12)',
+                    color: isElite ? '#ff3366' : '#ff9f0d',
+                    border: isElite ? '1px solid rgba(255, 51, 102, 0.25)' : '1px solid rgba(255, 159, 13, 0.25)',
                     textTransform: 'uppercase', letterSpacing: '0.5px',
                   }}>
                     {shot.difficulty}
@@ -683,7 +748,7 @@ function CameraFeed() {
         <div style={{ display: 'flex', gap: '10px', justifyContent: 'space-between' }}>
           <div className="status-indicator-badge" style={{ flex: 1, justifyContent: 'center' }}>
             <span className={`status-dot ${cameraReady ? 'active' : 'inactive'}`} />
-            CAM READY
+            CAM ACTIVE
           </div>
           <div className="status-indicator-badge" style={{ flex: 1, justifyContent: 'center' }}>
             <span className={`status-dot ${poseReady ? 'active' : 'inactive'}`} />
@@ -693,19 +758,6 @@ function CameraFeed() {
             <span className={`status-dot ${apiReady ? 'active' : 'inactive'}`} />
             API ONLINE
           </div>
-        </div>
-
-        {/* Symmetrical Feedback panel */}
-        <div className="glass-panel" style={{ padding: '24px' }}>
-          <Feedback 
-            score={currentScore} 
-            message={currentFeedback} 
-            frameCount={frameCount} 
-            bufferedFrames={bufferedFrameCount} 
-            shotName={lastShotName} 
-            analysisResult={analysisResult}
-            history={history}
-          />
         </div>
       </div>
     </div>

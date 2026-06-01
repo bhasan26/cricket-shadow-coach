@@ -18,7 +18,7 @@ from shot_evaluator import evaluate_frame, evaluate_shot
 app = FastAPI(
     title="Cricket Batting Coach API",
     description="Real-time pose analysis for cricket shot evaluation",
-    version="1.0.0"
+    version="1.1.0"
 )
 
 # Configure CORS — allow local dev + production Vercel domains

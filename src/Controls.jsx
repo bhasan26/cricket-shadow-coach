@@ -2,24 +2,24 @@ import React from 'react';
 
 function Controls({ onStart, onStop, isRecording, isAnalyzing }) {
   const btnBase = {
-    padding: '13px 24px',
-    fontSize: '0.9rem',
-    fontWeight: 700,
+    padding: '14px 24px',
+    fontSize: '0.88rem',
+    fontWeight: 800,
     border: 'none',
-    borderRadius: '12px',
+    borderRadius: '14px',
     cursor: isAnalyzing ? 'not-allowed' : 'pointer',
     transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
     width: '100%',
-    letterSpacing: '0.5px',
+    letterSpacing: '0.8px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: '8px',
+    gap: '10px',
     textTransform: 'uppercase'
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
       <button
         type="button"
         onClick={onStart}
@@ -32,12 +32,20 @@ function Controls({ onStart, onStop, isRecording, isAnalyzing }) {
       >
         {isRecording ? (
           <>
-            <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#fff', animation: 'live-record-glow 1s infinite' }} />
+            <span style={{ 
+              display: 'inline-block', 
+              width: '8px', 
+              height: '8px', 
+              borderRadius: '50%', 
+              background: '#0b0f19', 
+              boxShadow: '0 0 10px #0b0f19',
+              animation: 'live-record-glow 1s infinite' 
+            }} />
             ⏺ Recording Live...
           </>
         ) : (
           <>
-            <span style={{ fontSize: '1rem' }}>▶</span>
+            <span style={{ fontSize: '1rem', marginTop: '-2px' }}>▶</span>
             Start Practice
           </>
         )}
