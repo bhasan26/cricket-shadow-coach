@@ -87,6 +87,7 @@ function CameraFeed() {
   const lastStateChangeRef = useRef(Date.now());
   const recordingStartTimeRef = useRef(0);
   const [hudStateLabel, setHudStateLabel] = useState('STAND IN STANCE');
+  const [mobileTab, setMobileTab] = useState('video'); // 'video', 'hud', 'diagnostics'
 
   // Trigger vocal prompts on drill change
   useEffect(() => {
@@ -434,10 +435,10 @@ function CameraFeed() {
   return (
     <div className="dashboard-container">
       {/* Center Cockpit: Video Live Stream & Gauges Panel (Taking up 8 Columns) */}
-      <div className="center-cockpit">
+      <div className={`center-cockpit ${mobileTab !== 'video' && mobileTab !== 'hud' ? 'mobile-hide' : ''}`}>
         <div className="center-cockpit-grid">
           {/* Left: Interactive Video Cockpit Screen */}
-          <div>
+          <div className={mobileTab === 'hud' ? 'mobile-hide' : ''}>
             <div style={{
               position: 'relative',
               borderRadius: '24px',
@@ -529,7 +530,7 @@ function CameraFeed() {
           </div>
 
           {/* Right: Live Telemetry Card (sitting side-by-side with video cockpit) */}
-          <div className="cyber-card" style={{ padding: '24px', display: 'flex', flexDirection: 'column', height: '100%', minHeight: '344px' }}>
+          <div className={`cyber-card ${mobileTab === 'video' ? 'mobile-hide' : ''}`} style={{ padding: '24px', display: 'flex', flexDirection: 'column', height: '100%', minHeight: '344px' }}>
             <h3 style={{
               margin: '0 0 18px', fontSize: '0.9rem',
               textTransform: 'uppercase', letterSpacing: '1.5px',
@@ -574,7 +575,7 @@ function CameraFeed() {
       </div>
 
       {/* Right Sidebar: Unified Interactive Command & Diagnostics Deck */}
-      <div className="right-diagnostics">
+      <div className={`right-diagnostics ${mobileTab !== 'diagnostics' ? 'mobile-hide' : ''}`}>
         {/* Mobile Orientation Alert */}
         {isMobileDevice && (
           <div className="cyber-card" style={{ 
@@ -760,6 +761,22 @@ function CameraFeed() {
             API ONLINE
           </div>
         </div>
+      </div>
+
+      {/* Mobile Bottom Tab Navigation */}
+      <div className="mobile-tab-bar">
+        <button className={`mobile-tab-btn ${mobileTab === 'video' ? 'active' : ''}`} onClick={() => setMobileTab('video')}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 7l-7 5 7 5V7z"></path><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
+          CAMERA
+        </button>
+        <button className={`mobile-tab-btn ${mobileTab === 'hud' ? 'active' : ''}`} onClick={() => setMobileTab('hud')}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+          LIVE HUD
+        </button>
+        <button className={`mobile-tab-btn ${mobileTab === 'diagnostics' ? 'active' : ''}`} onClick={() => setMobileTab('diagnostics')}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>
+          COMMAND
+        </button>
       </div>
     </div>
   );

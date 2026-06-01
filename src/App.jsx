@@ -19,7 +19,7 @@ function App() {
       color: '#f8fafc',
     }}>
       {/* Floating Glass Navigation Header */}
-      <nav style={{
+      <nav className="app-header" style={{
         position: 'sticky',
         top: 0,
         left: 0,
@@ -176,7 +176,7 @@ function App() {
         
         <h1 style={{
           fontFamily: "'Chakra Petch', 'Plus Jakarta Sans', system-ui, sans-serif",
-          fontSize: '3.2rem',
+          fontSize: 'clamp(2rem, 5vw, 3.2rem)',
           fontWeight: 900,
           textTransform: 'uppercase',
           margin: 0,

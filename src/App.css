@@ -95,6 +95,95 @@
     flex-direction: column;
     gap: 20px;
   }
+
+  /* Mobile App Shell & Tabs */
+  .mobile-hide {
+    position: absolute !important;
+    top: -9999px !important;
+    left: -9999px !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    overflow: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+  }
+
+  .main-content {
+    padding-bottom: 90px !important; /* Space for bottom nav */
+  }
+
+  .mobile-tab-bar {
+    display: flex !important;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background: rgba(11, 15, 25, 0.98);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    z-index: 1000;
+    border-top: 1px solid rgba(255,255,255,0.05);
+    padding: 10px 24px 28px; /* Safe area padding */
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 -10px 30px rgba(0,0,0,0.5);
+  }
+
+  .mobile-tab-btn {
+    background: transparent;
+    border: none;
+    color: #64748b;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.65rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: all 0.25s;
+    padding: 4px;
+  }
+
+  .mobile-tab-btn svg {
+    font-size: 1.4rem;
+    opacity: 0.7;
+    transition: all 0.25s;
+  }
+
+  .mobile-tab-btn.active {
+    color: #00f5a0;
+  }
+
+  .mobile-tab-btn.active svg {
+    opacity: 1;
+    filter: drop-shadow(0 0 8px rgba(0,245,160,0.5));
+    transform: translateY(-2px);
+  }
+}
+
+@media (min-width: 901px) {
+  .mobile-tab-bar {
+    display: none !important;
+  }
+}
+
+/* Fix Top Nav on Mobile */
+@media (max-width: 600px) {
+  .top-nav-buttons {
+    flex-direction: column;
+    width: 100%;
+    gap: 8px;
+  }
+  .top-nav-buttons button {
+    width: 100%;
+  }
+  .app-header {
+    flex-direction: column;
+    gap: 16px;
+    padding: 16px !important;
+  }
 }
 
 /* Tactical Cockpit Command Buttons */
