@@ -291,7 +291,7 @@ function LandingPage({ onStartAnalysis }) {
             <div 
               className="style-card-bg" 
               style={{ 
-                backgroundImage: 'linear-gradient(to bottom, rgba(18, 42, 32, 0.4), rgba(18, 42, 32, 0.95)), url(/babar_azam_cover_drive.png)',
+                backgroundImage: 'linear-gradient(to bottom, rgba(18, 42, 32, 0.4), rgba(18, 42, 32, 0.95)), url(/babar_azam_coverdrive_hero.png)',
                 transform: 'scale(1.15) translate(-10px, 0)'
               }} 
             />
@@ -314,7 +314,7 @@ function LandingPage({ onStartAnalysis }) {
             <div 
               className="style-card-bg" 
               style={{ 
-                backgroundImage: 'linear-gradient(to bottom, rgba(18, 42, 32, 0.4), rgba(18, 42, 32, 0.95)), url(/rohit_sharma_pull_shot.png)',
+                backgroundImage: 'linear-gradient(to bottom, rgba(18, 42, 32, 0.4), rgba(18, 42, 32, 0.95)), url(/rohit_sharma_pull_hero.png)',
                 transform: 'scale(1.15) translate(-10px, 0)'
               }} 
             />
@@ -337,7 +337,7 @@ function LandingPage({ onStartAnalysis }) {
             <div 
               className="style-card-bg" 
               style={{ 
-                backgroundImage: 'linear-gradient(to bottom, rgba(18, 42, 32, 0.4), rgba(18, 42, 32, 0.95)), url(/rahul_dravid_forward_defence.png)',
+                backgroundImage: 'linear-gradient(to bottom, rgba(18, 42, 32, 0.4), rgba(18, 42, 32, 0.95)), url(/rahul_dravid_defensive_hero.png)',
                 transform: 'scale(1.15) translate(0, -10px)'
               }} 
             />
@@ -360,7 +360,7 @@ function LandingPage({ onStartAnalysis }) {
             <div 
               className="style-card-bg" 
               style={{ 
-                backgroundImage: 'linear-gradient(to bottom, rgba(18, 42, 32, 0.4), rgba(18, 42, 32, 0.95)), url(/virat_kohli_flick_shot.png)',
+                backgroundImage: 'linear-gradient(to bottom, rgba(18, 42, 32, 0.4), rgba(18, 42, 32, 0.95)), url(/virat_kohli_flick_hero.png)',
                 transform: 'scale(1.15) translate(-5px, 0)'
               }} 
             />
