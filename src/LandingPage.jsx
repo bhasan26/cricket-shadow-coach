@@ -190,7 +190,7 @@ function LandingPage({ onStartAnalysis }) {
             <div 
               className="style-card-bg" 
               style={{ 
-                backgroundImage: 'linear-gradient(to bottom, rgba(18, 42, 32, 0.4), rgba(18, 42, 32, 0.95)), url(/jasprit_bumrah_bowling.png)',
+                backgroundImage: 'linear-gradient(to bottom, rgba(18, 42, 32, 0.4), rgba(18, 42, 32, 0.95)), url(/kagiso_rabada_fastballer.png)',
                 transform: 'scale(1.15) rotate(5deg)'
               }} 
             />
@@ -203,18 +203,18 @@ function LandingPage({ onStartAnalysis }) {
                 d="M 50 350 Q 150 180 250 320" 
               />
             </svg>
-
+ 
             <div className="style-card-content">
               <h3 className="style-card-title">Fast Bowling</h3>
             </div>
           </div>
-
+ 
           {/* Card 2: Off-Spin */}
           <div className="style-card">
             <div 
               className="style-card-bg" 
               style={{ 
-                backgroundImage: 'linear-gradient(to bottom, rgba(18, 42, 32, 0.4), rgba(18, 42, 32, 0.95)), url(/ravichandran_ashwin_bowling.png)',
+                backgroundImage: 'linear-gradient(to bottom, rgba(18, 42, 32, 0.4), rgba(18, 42, 32, 0.95)), url(/nathan_lyon_offspin.png)',
                 transform: 'scale(1.15) translate(0, -10px)'
               }} 
             />
@@ -226,18 +226,18 @@ function LandingPage({ onStartAnalysis }) {
                 d="M 50 350 C 100 80, 180 120, 220 300" 
               />
             </svg>
-
+ 
             <div className="style-card-content">
               <h3 className="style-card-title">Off-Spin</h3>
             </div>
           </div>
-
+ 
           {/* Card 3: Leg-Spin */}
           <div className="style-card">
             <div 
               className="style-card-bg" 
               style={{ 
-                backgroundImage: 'linear-gradient(to bottom, rgba(18, 42, 32, 0.4), rgba(18, 42, 32, 0.95)), url(/shane_warne_leg_spin.png)',
+                backgroundImage: 'linear-gradient(to bottom, rgba(18, 42, 32, 0.4), rgba(18, 42, 32, 0.95)), url(/shane_warne_hero.png)',
                 transform: 'scale(1.15) translate(0, -10px)'
               }} 
             />
@@ -249,18 +249,18 @@ function LandingPage({ onStartAnalysis }) {
                 d="M 50 350 C 110 50, 160 140, 260 280" 
               />
             </svg>
-
+ 
             <div className="style-card-content">
               <h3 className="style-card-title">Leg-Spin</h3>
             </div>
           </div>
-
+ 
           {/* Card 4: Slower Balls */}
           <div className="style-card">
             <div 
               className="style-card-bg" 
               style={{ 
-                backgroundImage: 'linear-gradient(to bottom, rgba(18, 42, 32, 0.4), rgba(18, 42, 32, 0.95)), url(/pat_cummins_slower_ball.png)',
+                backgroundImage: 'linear-gradient(to bottom, rgba(18, 42, 32, 0.4), rgba(18, 42, 32, 0.95)), url(/lasith_malinga_slower_hero.png)',
                 transform: 'scale(1.15) translate(0, -10px)'
               }} 
             />
@@ -272,7 +272,7 @@ function LandingPage({ onStartAnalysis }) {
                 d="M 50 350 Q 150 100 240 350" 
               />
             </svg>
-
+ 
             <div className="style-card-content">
               <h3 className="style-card-title">Slower Balls</h3>
             </div>

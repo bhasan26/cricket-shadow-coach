@@ -140,9 +140,28 @@ def train_model():
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
     
+    # Checkpoint Configuration
+    # To persist checkpoints across Colab session disconnects, mount Google Drive:
+    # from google.colab import drive
+    # drive.mount('/content/drive')
+    # checkpoint_path = "/content/drive/MyDrive/bowling_model_checkpoint.pt"
+    checkpoint_path = "bowling_model_checkpoint.pt"
+    start_epoch = 0
     epochs = 10
+    
+    if os.path.exists(checkpoint_path):
+        print(f"Found existing checkpoint at {checkpoint_path}. Resuming training...")
+        try:
+            checkpoint = torch.load(checkpoint_path, map_location=device)
+            model.load_state_dict(checkpoint['model_state_dict'])
+            optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+            start_epoch = checkpoint['epoch']
+            print(f"Successfully resumed from epoch {start_epoch}")
+        except Exception as e:
+            print(f"Could not load checkpoint: {e}. Starting from scratch.")
+    
     print("Starting training loop...")
-    for epoch in range(epochs):
+    for epoch in range(start_epoch, epochs):
         model.train()
         total_loss = 0
         for videos, labels in loader:
@@ -158,9 +177,18 @@ def train_model():
             
         print(f"Epoch {epoch+1}/{epochs} | Loss: {total_loss/len(loader):.4f}")
         
-    # 4. SAVE EXPORTED MODEL
+        # Save checkpoint at the end of every epoch
+        torch.save({
+            'epoch': epoch + 1,
+            'model_state_dict': model.state_dict(),
+            'optimizer_state_dict': optimizer.state_dict(),
+            'loss': total_loss/len(loader),
+        }, checkpoint_path)
+        print(f"Epoch {epoch+1} checkpoint saved to {checkpoint_path}")
+        
+    # 4. SAVE FINAL EXPORTED MODEL
     torch.save(model.state_dict(), "bowling_model.pt")
-    print("Training complete! File saved as 'bowling_model.pt'.")
+    print("Training complete! Final model saved as 'bowling_model.pt'.")
 
 if __name__ == "__main__":
     train_model()
