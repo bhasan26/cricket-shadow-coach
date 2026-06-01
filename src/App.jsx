@@ -40,14 +40,17 @@ function App() {
           style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}
         >
           <img 
-            src="/logo.png" 
-            alt="Biotech AI Logo" 
+            src="/favicon.svg" 
+            alt="ShadowCoach Logo" 
             style={{ 
               width: '40px', 
               height: '40px', 
               borderRadius: '10px', 
               border: '1px solid rgba(0, 245, 160, 0.35)', 
-              boxShadow: '0 0 12px rgba(0, 245, 160, 0.25)' 
+              boxShadow: '0 0 12px rgba(0, 245, 160, 0.25)',
+              objectFit: 'contain',
+              background: 'rgba(255, 255, 255, 0.05)',
+              padding: '4px' 
             }} 
           />
           <span style={{ 
