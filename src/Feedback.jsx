@@ -38,9 +38,9 @@ function Feedback({ score, message, frameCount = 0, bufferedFrames = 0, shotName
   return (
     <div>
       <h3 style={{
-        margin: '0 0 18px', fontSize: '0.75rem',
+        margin: '0 0 18px', fontSize: '0.9rem',
         textTransform: 'uppercase', letterSpacing: '2px',
-        color: '#94a3b8', fontWeight: 800,
+        color: '#f8fafc', fontWeight: 800,
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
       }}>
         <span>Telemetry Diagnostics</span>
@@ -132,14 +132,14 @@ function Feedback({ score, message, frameCount = 0, bufferedFrames = 0, shotName
                   </span>
                 </div>
                 
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', paddingBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
-                  <span style={{ color: '#64748b' }}>ICC Regulation Limit:</span>
-                  <span style={{ color: '#cbd5e1', fontWeight: 700 }}>≤ 15.0°</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', paddingBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                  <span style={{ color: '#94a3b8' }}>ICC Regulation Limit:</span>
+                  <span style={{ color: '#f8fafc', fontWeight: 700 }}>≤ 15.0°</span>
                 </div>
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', paddingBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
-                  <span style={{ color: '#64748b' }}>Elbow Bend Range:</span>
-                  <span style={{ color: '#cbd5e1', fontWeight: 600 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', paddingBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                  <span style={{ color: '#94a3b8' }}>Elbow Bend Range:</span>
+                  <span style={{ color: '#f8fafc', fontWeight: 600 }}>
                     {analysisResult.angle_scores.min_elbow_angle?.toFixed(1)}° to {analysisResult.angle_scores.max_elbow_angle?.toFixed(1)}°
                   </span>
                 </div>
@@ -165,7 +165,7 @@ function Feedback({ score, message, frameCount = 0, bufferedFrames = 0, shotName
             </div>
           ) : (
             <div>
-              <h4 style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '1px', color: '#94a3b8', marginBottom: '14px', fontWeight: 800 }}>
+              <h4 style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '1px', color: '#cbd5e1', marginBottom: '14px', fontWeight: 800 }}>
                 Joint Accuracy Diagnostics
               </h4>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -197,7 +197,7 @@ function Feedback({ score, message, frameCount = 0, bufferedFrames = 0, shotName
           background: 'rgba(8, 14, 27, 0.45)', border: '1px solid rgba(255,255,255,0.04)',
           boxShadow: '0 4px 20px rgba(0,0,0,0.3)'
         }}>
-          <h4 style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '1px', color: '#ff9f0d', marginBottom: '14px', fontWeight: 800 }}>
+          <h4 style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '1px', color: '#ff9f0d', marginBottom: '14px', fontWeight: 800 }}>
             Practice Session Analytics
           </h4>
           

@@ -232,11 +232,13 @@ def extract_shot_angles(landmarks):
         left_shoulder_y = float(landmarks[11]["y"])
         right_wrist_y = float(landmarks[16]["y"])
         right_shoulder_y = float(landmarks[12]["y"])
+        nose_y = float(landmarks[0]["y"])
     except (KeyError, IndexError, TypeError):
         left_wrist_y = 1.0
         left_shoulder_y = 0.5
         right_wrist_y = 1.0
         right_shoulder_y = 0.5
+        nose_y = 0.0
 
     return {
         "left_elbow": get_left_elbow_angle(landmarks),
@@ -249,6 +251,7 @@ def extract_shot_angles(landmarks):
         "left_shoulder_y": left_shoulder_y,
         "right_wrist_y": right_wrist_y,
         "right_shoulder_y": right_shoulder_y,
+        "nose_y": nose_y,
     }
 
 

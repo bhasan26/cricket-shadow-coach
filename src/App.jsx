@@ -1,8 +1,16 @@
-import React from 'react';
+import React, { useState } from 'react';
 import CameraFeed from './CameraFeed';
+import VideoDashboard from './VideoDashboard';
+import LandingPage from './LandingPage';
 import './App.css';
 
 function App() {
+  const [activeTab, setActiveTab] = useState('home');
+
+  if (activeTab === 'home') {
+    return <LandingPage onStartAnalysis={() => setActiveTab('live')} />;
+  }
+
   return (
     <div style={{ 
       minHeight: '100vh',
@@ -26,7 +34,10 @@ function App() {
         justifyContent: 'space-between',
         alignItems: 'center'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        <div 
+          onClick={() => setActiveTab('home')}
+          style={{ display: 'flex', alignItems: 'center', gap: '16px', cursor: 'pointer' }}
+        >
           <img 
             src="/logo.png" 
             alt="Biotech AI Logo" 
@@ -55,17 +66,63 @@ function App() {
         
         <div>
           <div style={{
-            fontSize: '0.68rem',
-            fontWeight: 900,
-            color: '#00f5a0',
-            border: '1px solid rgba(0, 245, 160, 0.3)',
-            background: 'rgba(0, 245, 160, 0.08)',
-            padding: '5px 16px',
-            borderRadius: '30px',
-            letterSpacing: '1.2px',
-            boxShadow: '0 0 15px rgba(0,245,160,0.1)'
+            display: 'flex',
+            gap: '10px',
+            background: 'rgba(0, 0, 0, 0.4)',
+            padding: '4px',
+            borderRadius: '12px',
+            border: '1px solid rgba(255, 255, 255, 0.05)'
           }}>
-            PRO TELEMETRY CORE
+            <button 
+              onClick={() => setActiveTab('home')}
+              style={{
+                padding: '10px 20px',
+                background: 'transparent',
+                border: 'none',
+                borderRadius: '8px',
+                color: '#94a3b8',
+                fontWeight: 800,
+                fontSize: '0.9rem',
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={(e) => e.target.style.color = '#ffffff'}
+              onMouseLeave={(e) => e.target.style.color = '#94a3b8'}
+            >
+              🏠 HOME
+            </button>
+            <button 
+              onClick={() => setActiveTab('live')}
+              style={{
+                padding: '10px 20px',
+                background: activeTab === 'live' ? 'rgba(0, 245, 160, 0.15)' : 'transparent',
+                border: 'none',
+                borderRadius: '8px',
+                color: activeTab === 'live' ? '#00f5a0' : '#94a3b8',
+                fontWeight: 800,
+                fontSize: '0.9rem',
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
+            >
+              🔴 LIVE TELEMETRY
+            </button>
+            <button 
+              onClick={() => setActiveTab('dashboard')}
+              style={{
+                padding: '10px 20px',
+                background: activeTab === 'dashboard' ? 'rgba(0, 245, 160, 0.15)' : 'transparent',
+                border: 'none',
+                borderRadius: '8px',
+                color: activeTab === 'dashboard' ? '#00f5a0' : '#94a3b8',
+                fontWeight: 800,
+                fontSize: '0.9rem',
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
+            >
+              📊 VIDEO DASHBOARD
+            </button>
           </div>
         </div>
       </nav>
@@ -119,7 +176,7 @@ function App() {
         
         <h1 style={{
           fontFamily: "'Chakra Petch', 'Plus Jakarta Sans', system-ui, sans-serif",
-          fontSize: '2.5rem',
+          fontSize: '3.2rem',
           fontWeight: 900,
           textTransform: 'uppercase',
           margin: 0,
@@ -135,8 +192,8 @@ function App() {
           Cricket Shadow Coach
         </h1>
         <p style={{
-          color: '#64748b',
-          fontSize: '0.9rem',
+          color: '#cbd5e1',
+          fontSize: '1rem',
           marginTop: '6px',
           fontWeight: 600,
           position: 'relative',
@@ -163,8 +220,8 @@ function App() {
       </header>
 
       {/* Main Grid Dashboard */}
-      <main className="main-content" style={{ maxWidth: '1440px', margin: '0 auto' }}>
-        <CameraFeed />
+      <main className="main-content" style={{ maxWidth: '1440px', margin: '0 auto', padding: '20px' }}>
+        {activeTab === 'live' ? <CameraFeed /> : <VideoDashboard />}
       </main>
 
       {/* Symmetrical Lab Branding Footer */}

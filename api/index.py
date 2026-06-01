@@ -1,8 +1,9 @@
 import numpy as np
 from typing import List, Dict
-from fastapi import FastAPI
+from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+import shutil
 
 import os
 import sys
@@ -203,6 +204,37 @@ async def list_shots():
         return get_shot_list()
     except Exception as e:
         return {"error": str(e)}
+
+
+@app.post("/api/track-ball")
+async def track_ball(video: UploadFile = File(...)):
+    """
+    Process an uploaded video to track the ball trajectory using YOLO + PCHIP.
+    """
+    try:
+        from ball_tracker import CricketBiomechanicalAnalyzer
+        # Save the uploaded video to a temporary file
+        temp_path = f"/tmp/{video.filename}"
+        with open(temp_path, "wb") as buffer:
+            shutil.copyfileobj(video.file, buffer)
+            
+        analyzer = CricketBiomechanicalAnalyzer()
+        trajectory = analyzer.track_ball_trajectory_pchip(temp_path)
+        
+        # Clean up
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+            
+        return {
+            "status": "success",
+            "trajectory": trajectory
+        }
+    except Exception as e:
+        print(f"Error in track_ball: {e}")
+        return {
+            "status": "error",
+            "message": str(e)
+        }
 
 
 @app.get("/api/ideal-model")

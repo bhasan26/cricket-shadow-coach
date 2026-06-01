@@ -215,7 +215,8 @@ function CameraFeed() {
     if (canvas) {
       const ctx = canvas.getContext('2d');
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      drawSkeleton(ctx, landmarks, ghostEnabled ? selectedShot : null);
+      const trails = frameBufferRef.current.slice(-18).map(f => f.landmarks);
+      drawSkeleton(ctx, landmarks, ghostEnabled ? selectedShot : null, trails);
       
       for (const idx of [11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28]) {
         const lm = landmarks[idx];
@@ -521,7 +522,7 @@ function CameraFeed() {
             </div>
             
             {/* Statistics Bar */}
-            <div className="mono-telemetry" style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: '#475569', padding: '12px 8px' }}>
+            <div className="mono-telemetry" style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#94a3b8', padding: '12px 8px' }}>
               <span>STREAM STABILITY: 99.8% (32 FPS)</span>
               <span>TOTAL FRAMES: {frameCount}</span>
             </div>
@@ -530,7 +531,7 @@ function CameraFeed() {
           {/* Right: Live Telemetry Card (sitting side-by-side with video cockpit) */}
           <div className="cyber-card" style={{ padding: '24px', display: 'flex', flexDirection: 'column', height: '100%', minHeight: '344px' }}>
             <h3 style={{
-              margin: '0 0 18px', fontSize: '0.75rem',
+              margin: '0 0 18px', fontSize: '0.9rem',
               textTransform: 'uppercase', letterSpacing: '1.5px',
               color: '#ff9f0d', fontWeight: 800,
               display: 'flex', justifyContent: 'space-between', alignItems: 'center'
@@ -597,19 +598,19 @@ function CameraFeed() {
         {/* Controls Card */}
         <div className="cyber-card" style={{ padding: '24px' }}>
           <h3 style={{
-            margin: '0 0 18px', fontSize: '0.75rem',
+            margin: '0 0 24px', fontSize: '0.9rem',
             textTransform: 'uppercase', letterSpacing: '1.5px',
-            color: '#cbd5e1', fontWeight: 800,
+            color: '#f8fafc', fontWeight: 800,
           }}>
             Cockpit Command
           </h3>
           <Controls onStart={handleStart} onStop={handleStop} isRecording={isRecording} isAnalyzing={isAnalyzing} />
           
           {/* Hands-Free Auto-Record Toggle */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '24px', paddingTop: '20px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
             <div>
-              <div style={{ fontSize: '0.85rem', fontWeight: 800, color: '#f8fafc' }}>🤖 Auto-Record (Hands-free)</div>
-              <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '2px' }}>Triggers countdown in stance</div>
+              <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#f8fafc' }}>🤖 Auto-Record (Hands-free)</div>
+              <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '2px' }}>Triggers countdown in stance</div>
             </div>
             <button
               onClick={() => {
@@ -635,10 +636,10 @@ function CameraFeed() {
           </div>
 
           {/* Pro-Mirror blueprint Toggle */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '24px' }}>
             <div>
-              <div style={{ fontSize: '0.85rem', fontWeight: 800, color: '#f8fafc' }}>👻 Pro-Mirror (Ghost Overlay)</div>
-              <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '2px' }}>Overlays standard layout blueprints</div>
+              <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#f8fafc' }}>👻 Pro-Mirror (Ghost Overlay)</div>
+              <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '2px' }}>Overlays standard layout blueprints</div>
             </div>
             <button
               onClick={() => {
@@ -678,9 +679,9 @@ function CameraFeed() {
         {/* Skill Drills Grid */}
         <div className="cyber-card" style={{ padding: '24px' }}>
           <h3 style={{
-            margin: '0 0 18px', fontSize: '0.75rem',
+            margin: '0 0 24px', fontSize: '0.9rem',
             textTransform: 'uppercase', letterSpacing: '1.5px',
-            color: '#cbd5e1', fontWeight: 800,
+            color: '#f8fafc', fontWeight: 800,
           }}>
             Skill Drills
           </h3>

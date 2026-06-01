@@ -162,7 +162,48 @@ def calculate_shot_score(angles, ideal_angles=None, shot_type="cover_drive"):
     return float(score)
 
 
-def evaluate_bowling_action(angle_sequence):
+def get_adaptive_threshold(age_group="adult", metric="bowler_knee"):
+    """
+    Adaptive thresholding based on age-group and skeletal maturity.
+    """
+    thresholds = {
+        "adult": {"bowler_knee": 155.0, "batter_knee": 150.0},
+        "u18": {"bowler_knee": 152.0, "batter_knee": 145.0},
+        "u15": {"bowler_knee": 150.0, "batter_knee": 140.0},
+        "u10": {"bowler_knee": 148.0, "batter_knee": 135.0},
+    }
+    return thresholds.get(age_group, thresholds["adult"]).get(metric, 155.0)
+
+
+def evaluate_batting_biomechanics(angle_sequence, is_right_handed=True, age_group="adult"):
+    """
+    Evaluate batting-specific injury risks and biomechanical inefficiencies.
+    """
+    feedback = []
+    if not angle_sequence:
+        return feedback
+
+    front_knee_key = "left_knee" if is_right_handed else "right_knee"
+    front_knees = [f.get(front_knee_key, 0) for f in angle_sequence if f.get(front_knee_key, 0) > 0]
+    
+    # 1. Batter Knee Flex (>= 150 at impact)
+    if front_knees:
+        min_front_knee = min(front_knees)
+        knee_threshold = get_adaptive_threshold(age_group, "batter_knee")
+        if min_front_knee < knee_threshold:
+            feedback.append(f"⚠️ Knee Flex Warning: Front knee collapsed below {knee_threshold}° (measured {min_front_knee:.1f}°). A collapsed knee destroys shot control and balance.")
+
+    # 2. Head Alignment
+    head_alignments = [f.get("head_alignment", 0) for f in angle_sequence]
+    if head_alignments:
+        max_tilt = max(abs(h) for h in head_alignments)
+        if max_tilt > 3.0:
+            feedback.append(f"⚠️ Head Alignment: Severe head tilt detected. This alters binocular visual depth tracking and can cause premature bat closing.")
+
+    return feedback
+
+
+def evaluate_bowling_action(angle_sequence, age_group="adult"):
     """
     Evaluate a bowling action sequence for compliance with ICC Rule 11.1.
     
@@ -233,11 +274,22 @@ def evaluate_bowling_action(angle_sequence):
         }
         
     # Step 3: Measure elbow extension
-    min_elbow = min(delivery_frames)
-    max_elbow = max(delivery_frames)
+    import scipy.signal as signal
     
-    elbow_extension = max_elbow - min_elbow
-    elbow_extension = max(0.0, min(180.0, elbow_extension))
+    # Apply median filter to remove tracking jitter
+    if len(delivery_frames) >= 5:
+        smoothed = signal.medfilt(delivery_frames, kernel_size=5)
+    else:
+        smoothed = delivery_frames
+        
+    min_elbow = min(smoothed)
+    max_elbow = max(smoothed)
+    
+    # Calculate extension. We apply a 20° leniency offset because 2D webcam 
+    # projection heavily distorts (foreshortens) the arm, making straight arms look bent.
+    raw_extension = max_elbow - min_elbow
+    elbow_extension = max(0.0, raw_extension - 20.0)
+    elbow_extension = min(180.0, elbow_extension)
     
     spine_tilts = [f.get("spine_tilt", 0) for f in angle_sequence if f.get("spine_tilt", 0) > 0]
     avg_spine_tilt = np.mean(spine_tilts) if spine_tilts else 0.0
@@ -269,12 +321,25 @@ def evaluate_bowling_action(angle_sequence):
         )
         
     coaching_tips = []
+    
+    # 1. Lumbar Spine Strain Detection
     if avg_spine_tilt > 25:
-        coaching_tips.append("Leaning too far laterally — keep your head upright at release for balance.")
-    if avg_front_knee < 125:
-        coaching_tips.append("Front knee collapsed too much — brace your front leg for more power and height.")
-    elif avg_front_knee > 165:
-        coaching_tips.append("Braced front knee is nice and straight, yielding maximum release height.")
+        coaching_tips.append("⚠️ Lumbar Spine Strain Risk: Significant lateral tilt (>25°) detected. This indicates mixed delivery action leading to high torsional lumbar stress.")
+        
+    # 2. Knee Valgus Instability
+    knee_threshold = get_adaptive_threshold(age_group, "bowler_knee")
+    if avg_front_knee < knee_threshold:
+        coaching_tips.append(f"⚠️ Knee Valgus Instability: Front knee collapsed below {knee_threshold}° (measured {avg_front_knee:.1f}°). This transfers force directly to the lumbar spine, inducing stress fractures.")
+    elif avg_front_knee >= 165:
+        coaching_tips.append("✅ Braced-leg landing is excellent, providing maximum release height and safety.")
+
+    # 3. Shoulder Impingement Hazard (Round-arm)
+    nose_ys = [f.get("nose_y", 0) for f in angle_sequence if f.get("nose_y", 0) > 0]
+    avg_nose_y = np.mean(nose_ys) if nose_ys else 0.0
+    # MediaPipe: Y goes down. So wrist_y < nose_y means wrist is ABOVE head.
+    min_wrist_y = min([f.get(wrist_y_key, 1.0) for f in angle_sequence]) if angle_sequence else 1.0
+    if avg_nose_y > 0 and min_wrist_y > avg_nose_y:
+        coaching_tips.append("⚠️ Shoulder Impingement Hazard: Release height fell below head height (round-arm action). This places high shear stress on the rotator cuff.")
         
     if coaching_tips:
         feedback += " Coaching tips: " + " ".join(coaching_tips[:2])
@@ -400,6 +465,15 @@ def calculate_sequence_score(angle_sequence, shot_type="cover_drive"):
     
     # ── GENERATE FEEDBACK ────────────────────────────────────────
     feedback_list = []
+    
+    # Determine handedness for batting biomechanics (heuristic)
+    left_elbows = [f.get("left_elbow", 0) for f in angle_sequence]
+    right_elbows = [f.get("right_elbow", 0) for f in angle_sequence]
+    is_right_handed = np.var(right_elbows) >= np.var(left_elbows)
+    
+    batting_feedback = evaluate_batting_biomechanics(angle_sequence, is_right_handed)
+    if batting_feedback:
+        feedback_list.extend(batting_feedback)
     
     if final_score >= 80:
         feedback_list.append(f"Excellent {shot_name}! 🔥")

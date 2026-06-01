@@ -58,6 +58,58 @@ function getAngleColor(type, value) {
   return '#10b981';
 }
 
+function drawPulsingRing(ctx, x, y, color) {
+  const time = performance.now() / 1000;
+  const pulse = Math.abs(Math.sin(time * Math.PI * 1.5)); // 1.5Hz pulse
+  const radius = 10 + pulse * 18; 
+  const opacity = 0.6 - pulse * 0.6;
+  
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(x, y, radius, 0, Math.PI * 2);
+  ctx.fillStyle = `rgba(239, 68, 68, ${opacity})`; 
+  ctx.fill();
+  
+  ctx.beginPath();
+  ctx.arc(x, y, 6, 0, Math.PI * 2);
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawAngleArc(ctx, center, pA, pC, color, width, height) {
+    if (!center || !pA || !pC) return;
+    const cx = center.x * width, cy = center.y * height;
+    const ax = pA.x * width, ay = pA.y * height;
+    const cx2 = pC.x * width, cy2 = pC.y * height;
+
+    const angleA = Math.atan2(ay - cy, ax - cx);
+    const angleC = Math.atan2(cy2 - cy, cx2 - cx);
+    
+    let diff = angleC - angleA;
+    while (diff > Math.PI) diff -= 2 * Math.PI;
+    while (diff < -Math.PI) diff += 2 * Math.PI;
+    
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, 28, angleA, angleA + diff, diff < 0);
+    
+    if (color.startsWith('#')) {
+      const r = parseInt(color.slice(1, 3), 16);
+      const g = parseInt(color.slice(3, 5), 16);
+      const b = parseInt(color.slice(5, 7), 16);
+      ctx.fillStyle = `rgba(${r}, ${g}, ${b}, 0.25)`;
+    } else {
+      ctx.fillStyle = 'rgba(16, 185, 129, 0.25)';
+    }
+    ctx.fill();
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = color;
+    ctx.stroke();
+    ctx.restore();
+}
+
 function drawJointBadge(ctx, text, x, y, color) {
   ctx.save();
   ctx.font = 'bold 11px system-ui, -apple-system, sans-serif';
@@ -178,12 +230,44 @@ const GHOST_POSES = {
   }
 };
 
-export function drawSkeleton(ctx, poseLandmarks, ghostType = null) {
+export function drawSkeleton(ctx, poseLandmarks, ghostType = null, trails = []) {
   if (!ctx) return;
 
   const { canvas } = ctx;
   const width = canvas.width;
   const height = canvas.height;
+
+  // 0. Draw Fading Movement Trails
+  if (trails && trails.length > 0) {
+    ctx.save();
+    // Key joints to track: wrists (15, 16) and ankles (27, 28)
+    const trackedJoints = [15, 16, 27, 28];
+    for (const jointIdx of trackedJoints) {
+      ctx.beginPath();
+      let first = true;
+      for (let i = 0; i < trails.length; i++) {
+        const frame = trails[i];
+        if (!frame[jointIdx]) continue;
+        const x = frame[jointIdx].x * width;
+        const y = frame[jointIdx].y * height;
+        if (first) {
+          ctx.moveTo(x, y);
+          first = false;
+        } else {
+          ctx.lineTo(x, y);
+        }
+      }
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.lineWidth = 4;
+      // Fading orange trail
+      ctx.strokeStyle = `rgba(255, 159, 13, 0.45)`;
+      ctx.shadowColor = '#ff9f0d';
+      ctx.shadowBlur = 10;
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
 
   // 1. Draw Footprint Blueprints at the bottom of the canvas
   if (ghostType) {
@@ -316,13 +400,24 @@ export function drawSkeleton(ctx, poseLandmarks, ghostType = null) {
 
   for (const item of anglesToCalculate) {
     const vertexIdx = item.indices[1];
+    const ptA = poseLandmarks[item.indices[0]];
     const vertex = poseLandmarks[vertexIdx];
+    const ptC = poseLandmarks[item.indices[2]];
     const val = angleValues[item.type];
     
-    if (vertex && val !== undefined) {
+    if (vertex && ptA && ptC && val !== undefined) {
       const vis = vertex.visibility !== undefined ? vertex.visibility : 1.0;
       if (vis > 0.45) {
         const color = getAngleColor(item.type, val);
+        
+        // Draw the visual angle arc
+        drawAngleArc(ctx, vertex, ptA, ptC, color, width, height);
+        
+        // Draw pulsing ring for errors
+        if (color === '#ef4444') {
+          drawPulsingRing(ctx, vertex.x * width, vertex.y * height, color);
+        }
+        
         drawJointBadge(ctx, `${item.label}: ${val}°`, vertex.x * width, vertex.y * height, color);
       }
     }
