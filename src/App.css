@@ -192,30 +192,91 @@
   }
 }
 
-/* Fix Top Nav on Mobile */
+/* Fix Top Nav on Mobile — keep a single compact horizontal row */
 @media (max-width: 600px) {
   .top-nav-wrapper {
     width: 100% !important;
     max-width: 100% !important;
   }
   .top-nav-buttons {
-    flex-direction: column !important;
+    flex-direction: row !important;
     width: 100% !important;
-    gap: 8px !important;
+    gap: 4px !important;
   }
   .top-nav-buttons button {
-    width: 100% !important;
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
     justify-content: center !important;
+    padding: 9px 4px !important;
+    font-size: 0.66rem !important;
+    letter-spacing: 0 !important;
+  }
+  /* Drop icons on small screens so the labels never wrap */
+  .nav-icon {
+    display: none !important;
+  }
+  .nav-label {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .app-header {
     flex-direction: column !important;
-    gap: 16px !important;
-    padding: 16px !important;
+    gap: 12px !important;
+    padding: 12px 14px !important;
   }
   .brand-text-container {
     flex-wrap: wrap !important;
     justify-content: center !important;
     text-align: center !important;
+  }
+
+  /* Compact hero so content is reachable without long scroll */
+  .hero-banner {
+    padding: 12px 0 8px !important;
+  }
+  .hero-subtitle {
+    display: none !important;
+  }
+
+  /* Tighten card spacing — inline padding needs !important to override */
+  .dashboard-journey {
+    gap: 18px !important;
+  }
+  .cyber-card,
+  .camera-telemetry-panel > .cyber-card,
+  .right-diagnostics .cyber-card {
+    padding: 16px !important;
+  }
+  .step-header {
+    margin-bottom: 14px !important;
+  }
+  .step-header h2 {
+    font-size: 0.95rem !important;
+    letter-spacing: 1px !important;
+  }
+  /* Keep the live video from dominating the viewport on phones */
+  .camera-container {
+    max-height: 56vh !important;
+  }
+  /* Telemetry gauges go single-column so labels/values stay readable */
+  .telemetry-grid {
+    grid-template-columns: 1fr !important;
+    gap: 4px !important;
+    margin-top: 16px !important;
+  }
+  .telemetry-grid-full {
+    grid-column: span 1 !important;
+    margin-top: 0 !important;
+  }
+  /* Compact shot picker cards */
+  .shot-card-btn {
+    padding: 14px 14px !important;
+    gap: 12px !important;
+    border-radius: 14px !important;
+  }
+  .shot-card-btn:hover:not(:disabled) {
+    transform: none !important;
   }
 }
 
