@@ -54,6 +54,34 @@
   margin-top: -8px;
 }
 
+/* Quick 3-up key-stats strip (mobile only — hidden on tablet/desktop) */
+.key-stats-strip {
+  display: none;
+}
+.key-stat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 6px;
+  background: rgba(8, 14, 27, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 12px;
+}
+.key-stat-value {
+  font-size: 1.3rem;
+  font-weight: 900;
+  line-height: 1.1;
+}
+.key-stat-label {
+  font-size: 0.62rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #94a3b8;
+}
+
 .camera-container {
   position: relative;
   border-radius: 24px;
@@ -67,7 +95,7 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transform: scaleX(-1);
+  will-change: transform;
 }
 .camera-container canvas {
   position: absolute;
@@ -76,7 +104,38 @@
   width: 100%;
   height: 100%;
   pointer-events: none;
+  will-change: transform;
+}
+/* Only mirror when using the front (selfie) camera. */
+.camera-container.mirrored video,
+.camera-container.mirrored canvas {
   transform: scaleX(-1);
+}
+
+/* Flip-camera control — 44px thumb target */
+.flip-camera-btn {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  z-index: 4;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(15, 23, 42, 0.78);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: #00f5a0;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  transition: transform 0.2s, background-color 0.2s;
+}
+.flip-camera-btn:active {
+  transform: scale(0.92);
+  background: rgba(0, 245, 160, 0.18);
 }
 
 /* Symmetrical high-tech corner tech brackets for premium cards */
@@ -132,7 +191,15 @@
   }
 
   .main-content {
-    padding-bottom: 90px !important; /* Space for bottom nav */
+    /* Clear the fixed tab bar incl. the home-indicator safe area */
+    padding-bottom: calc(96px + env(safe-area-inset-bottom)) !important;
+  }
+
+  /* Surface the quick key-stats strip on mobile */
+  .key-stats-strip {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
   }
 
   .mobile-tab-bar {
@@ -146,8 +213,11 @@
     -webkit-backdrop-filter: blur(16px);
     z-index: 1000;
     border-top: 1px solid rgba(255,255,255,0.05);
-    padding: 10px 24px 28px; /* Safe area padding */
-    justify-content: space-between;
+    /* Bottom padding respects notched-phone home indicator */
+    padding: 8px 16px calc(8px + env(safe-area-inset-bottom));
+    padding-left: calc(16px + env(safe-area-inset-left));
+    padding-right: calc(16px + env(safe-area-inset-right));
+    justify-content: space-around;
     align-items: center;
     box-shadow: 0 -10px 30px rgba(0,0,0,0.5);
   }
@@ -159,14 +229,18 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 6px;
-    font-size: 0.65rem;
+    justify-content: center;
+    gap: 5px;
+    font-size: 0.66rem;
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     cursor: pointer;
     transition: all 0.25s;
-    padding: 4px;
+    padding: 6px 10px;
+    min-width: 56px;
+    min-height: 48px; /* thumb-friendly target */
+    flex: 1;
   }
 
   .mobile-tab-btn svg {
@@ -223,7 +297,8 @@
   .app-header {
     flex-direction: column !important;
     gap: 12px !important;
-    padding: 12px 14px !important;
+    /* Keep the sticky header clear of the notch in standalone/PWA mode */
+    padding: calc(10px + env(safe-area-inset-top)) 14px 12px !important;
   }
   .brand-text-container {
     flex-wrap: wrap !important;
@@ -277,6 +352,14 @@
   }
   .shot-card-btn:hover:not(:disabled) {
     transform: none !important;
+  }
+
+  /* Readability floor for live data (min ~14px) */
+  .gauge-row-head {
+    font-size: 0.9rem !important;
+  }
+  .gauge-bar {
+    height: 11px !important;
   }
 }
 

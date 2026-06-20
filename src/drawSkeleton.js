@@ -110,20 +110,28 @@ function drawAngleArc(ctx, center, pA, pC, color, width, height) {
     ctx.restore();
 }
 
+// Outdoor/sunlight readability: thicker strokes + bigger text when the OS
+// requests higher contrast. Evaluated once per draw via the helper below.
+function contrastBoost() {
+  return (typeof window !== 'undefined' && window.matchMedia &&
+    window.matchMedia('(prefers-contrast: more)').matches) ? 1.4 : 1;
+}
+
 function drawJointBadge(ctx, text, x, y, color) {
   ctx.save();
-  ctx.font = 'bold 11px system-ui, -apple-system, sans-serif';
+  const fontPx = Math.round(13 * contrastBoost());
+  ctx.font = `bold ${fontPx}px system-ui, -apple-system, sans-serif`;
   const textWidth = ctx.measureText(text).width;
-  const paddingX = 8;
-  const paddingY = 4;
+  const paddingX = 9;
+  const paddingY = 5;
   const badgeWidth = textWidth + paddingX * 2;
-  const badgeHeight = 16 + paddingY * 2;
-  
-  ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
+  const badgeHeight = fontPx + 5 + paddingY * 2;
+
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.55)';
   ctx.shadowBlur = 8;
-  ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+  ctx.fillStyle = 'rgba(8, 14, 27, 0.92)';
   ctx.strokeStyle = color;
-  ctx.lineWidth = 1.5;
+  ctx.lineWidth = 2;
   
   const rx = x - badgeWidth / 2;
   const ry = y - badgeHeight - 10;
@@ -135,7 +143,8 @@ function drawJointBadge(ctx, text, x, y, color) {
   
   ctx.shadowBlur = 0;
   ctx.fillStyle = '#f8fafc';
-  ctx.fillText(text, rx + paddingX, ry + 15);
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, rx + paddingX, ry + badgeHeight / 2);
   ctx.restore();
 }
 
@@ -386,11 +395,11 @@ export function drawSkeleton(ctx, poseLandmarks, ghostType = null, trails = []) 
     const color = getAngleColor(seg.type, liveVal);
     
     ctx.strokeStyle = color;
-    ctx.lineWidth = 3.5;
+    ctx.lineWidth = 5 * contrastBoost();
     ctx.lineCap = 'round';
     ctx.shadowColor = color;
     ctx.shadowBlur = 8;
-    
+
     ctx.beginPath();
     ctx.moveTo(start.x * width, start.y * height);
     ctx.lineTo(end.x * width, end.y * height);

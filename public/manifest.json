@@ -1,0 +1,25 @@
+{
+  "name": "Cricket Shadow Coach",
+  "short_name": "ShadowCoach",
+  "description": "Real-time AI cricket batting and bowling technique analysis using pose estimation.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0b0f19",
+  "theme_color": "#0b0f19",
+  "categories": ["sports", "health", "fitness"],
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

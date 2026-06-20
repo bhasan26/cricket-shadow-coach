@@ -23,6 +23,24 @@ function Feedback({ score, message, frameCount = 0, bufferedFrames = 0, shotName
 
   const hasDetails = analysisResult && analysisResult.angle_scores && Object.keys(analysisResult.angle_scores).length > 0;
   const isBowling = analysisResult && analysisResult.shot_type === 'bowling_action';
+  const [shareLabel, setShareLabel] = useState('Share');
+
+  const handleShare = async () => {
+    const drill = shotName || 'cricket shot';
+    const text = `I scored ${scorePercentage}% on my ${drill} with Cricket Shadow Coach! 🏏`;
+    const shareData = { title: 'Cricket Shadow Coach', text, url: 'https://cricketcoach.online' };
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else if (navigator.clipboard) {
+        await navigator.clipboard.writeText(`${text} ${shareData.url}`);
+        setShareLabel('Copied!');
+        setTimeout(() => setShareLabel('Share'), 2000);
+      }
+    } catch {
+      /* user cancelled or share unavailable — ignore */
+    }
+  };
 
   const formatJointName = (name) => {
     return name
@@ -110,6 +128,26 @@ function Feedback({ score, message, frameCount = 0, bufferedFrames = 0, shotName
       }}>
         {message || 'Ready for shadow practice. Calibrate your feet in the footprint blueprints and swing.'}
       </div>
+
+      {/* Share result — appears once a drill has been analysed */}
+      {hasDetails && (
+        <button
+          onClick={handleShare}
+          style={{
+            width: '100%', minHeight: '44px', padding: '12px 14px', borderRadius: '12px',
+            background: 'rgba(0, 229, 255, 0.06)', border: '1px solid rgba(0, 229, 255, 0.25)',
+            color: '#00e5ff', fontSize: '0.8rem', fontWeight: 800, cursor: 'pointer',
+            textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '4px',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
+          }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" />
+            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" /><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+          </svg>
+          {shareLabel}
+        </button>
+      )}
 
       {/* DETAILED DRILL ANALYSIS REPORT CARD */}
       {hasDetails && !showHistory && (

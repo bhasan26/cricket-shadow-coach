@@ -72,6 +72,8 @@ function CameraFeed() {
   // Toggles for features
   const [autoRecordEnabled, setAutoRecordEnabled] = useState(false);
   const [ghostEnabled, setGhostEnabled] = useState(true);
+  // Rear camera by default — users prop the phone up and stand back for a full-body shot.
+  const [facingMode, setFacingMode] = useState('environment');
 
   // Live client-side telemetry state
   const [liveLeftElbow, setLiveLeftElbow] = useState(0);
@@ -159,6 +161,9 @@ function CameraFeed() {
       setCurrentFeedback(result.feedback || 'Analysis complete');
       setLastShotName(result.shot_name || shotName);
       setAnalysisResult(result);
+
+      // On mobile, jump straight to the Results tab so the score is seen without scrolling.
+      setMobileTab('results');
 
       if (selectedShot === 'bowling_action') {
         const isCompliant = result.score >= 80;
@@ -347,8 +352,13 @@ function CameraFeed() {
     let mounted = true;
     const startCamera = async () => {
       try {
+        // Stop any previous stream before switching cameras.
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach(t => t.stop());
+          streamRef.current = null;
+        }
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' },
+          video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: { ideal: facingMode } },
           audio: false,
         });
         if (!mounted) { stream.getTracks().forEach(t => t.stop()); return; }
@@ -358,12 +368,12 @@ function CameraFeed() {
           videoRef.current.onloadedmetadata = () => setCameraReady(true);
         }
       } catch (error) {
-        setCurrentFeedback('📷 Camera access denied. Please verify camera permissions.');
+        setCurrentFeedback('📷 Camera access denied. Please allow camera permissions in your browser to begin analysis.');
       }
     };
     startCamera();
     return () => { mounted = false; if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop()); };
-  }, []);
+  }, [facingMode]);
 
   useEffect(() => {
     if (!cameraReady || !videoRef.current) return;
@@ -407,7 +417,7 @@ function CameraFeed() {
     const percentage = Math.min(100, Math.max(0, (val / maxVal) * 100));
     return (
       <div style={{ marginBottom: '14px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '4px' }}>
+        <div className="gauge-row-head" style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '4px' }}>
           <span style={{ color: '#94a3b8', fontWeight: 500 }}>{label}</span>
           <span className="mono-telemetry" style={{ color: color, fontWeight: 700 }}>
             {val}° <span style={{ fontSize: '0.7rem', color: '#475569', fontWeight: 400 }}>({targetRange})</span>
@@ -509,13 +519,28 @@ function CameraFeed() {
             <h2>Camera & Live Telemetry</h2>
           </div>
 
-          <div className="camera-container" style={{
+          <div className={`camera-container ${facingMode === 'user' ? 'mirrored' : ''}`} style={{
             border: isRecording ? '2.5px solid #ff3366' : '2.5px solid #00f5a0',
             boxShadow: isRecording ? '0 0 25px rgba(255, 51, 102, 0.25)' : '0 0 25px rgba(0, 245, 160, 0.15)',
             transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
           }}>
             <video ref={videoRef} autoPlay muted playsInline />
             <canvas ref={canvasRef} />
+
+            {/* Flip Camera (front/rear) — bottom-right, thumb-reachable */}
+            {cameraReady && !isRecording && (
+              <button
+                type="button"
+                aria-label="Switch camera"
+                onClick={() => { unlockMobileAudio(); setFacingMode(prev => prev === 'user' ? 'environment' : 'user'); }}
+                className="flip-camera-btn"
+              >
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M23 4v6h-6" /><path d="M1 20v-6h6" />
+                  <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+                </svg>
+              </button>
+            )}
 
             {/* Camera Permission Overlay Inside the Video Container */}
             {!cameraReady && (
@@ -608,8 +633,31 @@ function CameraFeed() {
             )}
           </div>
 
+          {/* Mobile-only quick key-stats strip — the 3 numbers that matter at a glance */}
+          <div className="key-stats-strip">
+            {(selectedShot === 'bowling_action'
+              ? [
+                  { label: 'Bowl Elbow', val: liveRightElbow || liveLeftElbow, type: 'elbow' },
+                  { label: 'Brace Knee', val: liveLeftKnee || liveRightKnee, type: 'knee' },
+                  { label: 'Spine', val: liveSpineTilt, type: 'spine' },
+                ]
+              : [
+                  { label: 'Front Elbow', val: liveLeftElbow, type: 'left_elbow' },
+                  { label: 'Front Knee', val: liveLeftKnee, type: 'left_knee' },
+                  { label: 'Spine', val: liveSpineTilt, type: 'spine' },
+                ]
+            ).map((s) => (
+              <div className="key-stat" key={s.label}>
+                <span className="key-stat-value mono-telemetry" style={{ color: getGaugeColor(s.type, s.val) }}>
+                  {s.val}°
+                </span>
+                <span className="key-stat-label">{s.label}</span>
+              </div>
+            ))}
+          </div>
+
           {/* Statistics Bar */}
-          <div className="mono-telemetry" style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#94a3b8', padding: '12px 8px' }}>
+          <div className="mono-telemetry" style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', color: '#94a3b8', padding: '12px 8px' }}>
             <span>STREAM STABILITY: {cameraReady ? '99.8% (32 FPS)' : 'OFFLINE'}</span>
             <span>TOTAL FRAMES: {frameCount}</span>
           </div>
