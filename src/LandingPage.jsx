@@ -5,6 +5,38 @@ import './LandingPage.css';
 function LandingPage({ onStartAnalysis, onNavigate }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [expandedProgram, setExpandedProgram] = useState(0);
+
+  const programsData = [
+    {
+      title: "FOR BEGINNERS",
+      summary: "A welcoming introduction to cricket mechanics focused on basic stance, grip, and confidence-building.",
+      detail: "Progressive programs crafted to nurture young or new talent from foundational skills. Players train in dynamic shadows that focus on balance, grip fundamentals, and early swing mechanics—all supported by our AI engine.",
+      tags: ["CONFIDENCE BUILDING", "BASIC STANCE", "GRIP FUNDAMENTALS", "EARLY SWING"],
+      image: "/rising_star_avatar.png"
+    },
+    {
+      title: "FOR AMATEURS",
+      summary: "Refine your technique and build consistency for weekend matches and club leagues.",
+      detail: "Elevate your game with advanced shadow coaching designed for club players. Focus on specific shot selections, bowling run-ups, and fielding reflexes to gain a competitive edge in your local league.",
+      tags: ["CONSISTENCY", "SHOT SELECTION", "BOWLING RUN-UP", "MATCH AWARENESS"],
+      image: "/rohit_sharma_pull_hero.png"
+    },
+    {
+      title: "FOR PROFESSIONALS",
+      summary: "Elite biomechanical analysis for high-performance athletes demanding millimeter perfection.",
+      detail: "Laboratory-grade kinematic data at your fingertips. Our AI tracks joint angles, bat speed, and release points with unprecedented accuracy to fine-tune mechanics for the professional arena.",
+      tags: ["KINEMATICS", "JOINT ANGLES", "BAT SPEED", "RELEASE POINT"],
+      image: "/babar_azam_coverdrive_hero.png"
+    },
+    {
+      title: "FOR COACHES",
+      summary: "Powerful team management and bulk analysis tools to elevate your entire squad.",
+      detail: "Manage your academy with ease. Track the progress of multiple players, compare side-by-side techniques, and provide data-backed feedback that accelerates your team's development.",
+      tags: ["SQUAD MANAGEMENT", "SIDE-BY-SIDE", "PROGRESS TRACKING", "DATA FEEDBACK"],
+      image: "/cricket_coach_avatar.png"
+    }
+  ];
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -35,7 +67,7 @@ function LandingPage({ onStartAnalysis, onNavigate }) {
       {/* ── Navigation ── */}
       <nav className={`courto-nav ${scrolled ? 'scrolled' : ''}`}>
         <div className="nav-container">
-          <div className="nav-logo" style={{ cursor: 'pointer' }} onClick={() => { window.scrollTo(0,0); if (onNavigate) onNavigate('home'); }}>
+          <div className="nav-logo" style={{ cursor: 'pointer' }} onClick={() => { window.scrollTo(0, 0); if (onNavigate) onNavigate('home'); }}>
             CRICKET<span>COACH</span>
           </div>
 
@@ -83,7 +115,7 @@ function LandingPage({ onStartAnalysis, onNavigate }) {
           <img src="/hero_cricket_bat.jpg" alt="Cricket Bat and Ball" className="hero-img" />
           <div className="hero-overlay"></div>
         </div>
-        
+
         <div className="hero-content">
           <div className="hero-badge reveal">
             <span className="badge-dot"></span> NEXT-GEN CRICKET ANALYSIS
@@ -203,7 +235,7 @@ function LandingPage({ onStartAnalysis, onNavigate }) {
       {/* ── Solid Neon Info Block ── */}
       <section className="solid-info-section reveal">
         <div className="solid-info-content">
-          <h2 className="solid-info-title">DEMOCRATIZING<br/>SPORTS SCIENCE</h2>
+          <h2 className="solid-info-title">DEMOCRATIZING<br />SPORTS SCIENCE</h2>
           <p className="solid-info-desc">
             Previously requiring multi-million dollar motion capture studios, our web-based neural network pipeline delivers precise analytics from any standard camera or mobile device.
           </p>
@@ -212,15 +244,15 @@ function LandingPage({ onStartAnalysis, onNavigate }) {
           </button>
         </div>
         <div className="solid-info-visual">
-           <img src="/cricket_bowler_hero.png" alt="Biomechanical Overlay" />
-           <div className="bio-glass-card top-right">
-             <span className="bio-label">ELBOW ANGLE</span>
-             <span className="bio-val">14° LEGAL</span>
-           </div>
-           <div className="bio-glass-card bottom-left">
-             <span className="bio-label">KNEE FLEXION</span>
-             <span className="bio-val">65°</span>
-           </div>
+          <img src="/cricket_bowler_hero.png" alt="Biomechanical Overlay" />
+          <div className="bio-glass-card top-right">
+            <span className="bio-label">ELBOW ANGLE</span>
+            <span className="bio-val">14° LEGAL</span>
+          </div>
+          <div className="bio-glass-card bottom-left">
+            <span className="bio-label">KNEE FLEXION</span>
+            <span className="bio-val">65°</span>
+          </div>
         </div>
       </section>
 
@@ -228,7 +260,7 @@ function LandingPage({ onStartAnalysis, onNavigate }) {
       <section id="about" className="about-scatter-section">
         <div className="scatter-header-wrapper reveal">
           <div className="section-pill">ABOUT US</div>
-          <h2 className="scatter-title">AN INDEPENDENT PROJECT FOR<br/>THE LOVERS OF CRICKET</h2>
+          <h2 className="scatter-title">AN INDEPENDENT PROJECT FOR<br />THE LOVERS OF CRICKET</h2>
         </div>
 
         <div className="scatter-pills-container reveal">
@@ -257,7 +289,7 @@ function LandingPage({ onStartAnalysis, onNavigate }) {
               </div>
             </div>
           </div>
-          
+
           {/* Card 2 */}
           <div className="scatter-card">
             <div className="scatter-quote-icon">"</div>
@@ -288,33 +320,78 @@ function LandingPage({ onStartAnalysis, onNavigate }) {
         </div>
       </section>
 
+      {/* ── Programs Accordion ── */}
+      <section id="programs" className="programs-accordion-section">
+        <div className="accordion-container reveal">
+          {programsData.map((prog, idx) => {
+            const isActive = expandedProgram === idx;
+            return (
+              <div
+                key={idx}
+                className={`accordion-item ${isActive ? 'active' : ''}`}
+                onClick={() => setExpandedProgram(isActive ? null : idx)}
+              >
+                <div className="accordion-header">
+                  <h2 className="accordion-title">{prog.title}</h2>
+                  <div className={`accordion-icon ${isActive ? 'active' : ''}`}>
+                    {isActive ? (
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 19.5l15-15m0 0H8.25m11.25 0v11.25" /></svg>
+                    ) : (
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 4.5l-15 15m0 0h11.25m-11.25 0V8.25" /></svg>
+                    )}
+                  </div>
+                </div>
+                {isActive && (
+                  <div className="accordion-content">
+                    <div className="accordion-summary-col">
+                      <p className="accordion-summary">{prog.summary}</p>
+                    </div>
+                    <div className="accordion-detail-col">
+                      <p className="accordion-detail">{prog.detail}</p>
+                      <div className="accordion-tags">
+                        {prog.tags.map(tag => (
+                          <span key={tag} className="accordion-tag">{tag}</span>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="accordion-image-col">
+                      <img src={prog.image} alt={prog.title} className="accordion-image" />
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
       {/* ── Pricing ── */}
       <section id="pricing" className="pricing-section">
         <div className="pricing-container">
           <div className="pricing-header reveal">
-             <h4 className="section-subtitle">ACCESS</h4>
-             <h2 className="section-title">FREE DURING <span className="text-neon">BETA</span></h2>
-             <p className="section-desc">Every feature, every analysis tool, completely free while we refine the platform. No credit card. No commitment.</p>
+            <h4 className="section-subtitle">ACCESS</h4>
+            <h2 className="section-title">FREE DURING <span className="text-neon">BETA</span></h2>
+            <p className="section-desc">Every feature, every analysis tool, completely free while we refine the platform. No credit card. No commitment.</p>
           </div>
-          
+
           <div className="pricing-card reveal reveal-delay-2">
             <div className="pricing-card-badge">BETA ACCESS</div>
             <div className="pricing-price">$0<span className="pricing-period">/ MONTH</span></div>
             <ul className="pricing-features-list">
               <li>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M5 12l5 5L20 7"/></svg>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M5 12l5 5L20 7" /></svg>
                 Real-time pose estimation & tracking
               </li>
               <li>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M5 12l5 5L20 7"/></svg>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M5 12l5 5L20 7" /></svg>
                 ICC bowling compliance audit
               </li>
               <li>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M5 12l5 5L20 7"/></svg>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M5 12l5 5L20 7" /></svg>
                 Batting stroke analysis & scoring
               </li>
               <li>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M5 12l5 5L20 7"/></svg>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M5 12l5 5L20 7" /></svg>
                 Video upload & frame-by-frame review
               </li>
             </ul>

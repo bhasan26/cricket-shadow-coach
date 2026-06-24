@@ -655,6 +655,110 @@
   font-weight: 700;
 }
 
+/* ── Programs Accordion ── */
+.programs-accordion-section {
+  background: #ccff00;
+  padding: 120px 40px;
+}
+.accordion-container {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+.accordion-item {
+  border-bottom: 2px solid rgba(0,0,0,0.1);
+  padding: 40px 0;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+.accordion-item:first-child {
+  border-top: 2px solid rgba(0,0,0,0.1);
+}
+.accordion-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.accordion-title {
+  font-family: var(--font-display);
+  font-size: clamp(2.5rem, 6vw, 4.5rem);
+  font-style: italic;
+  font-weight: 800;
+  color: #111111;
+  text-transform: uppercase;
+  line-height: 1.1;
+  margin: 0;
+  transition: opacity 0.3s;
+}
+.accordion-item:not(.active) .accordion-title {
+  opacity: 0.6;
+}
+.accordion-item:hover .accordion-title {
+  opacity: 1;
+}
+.accordion-icon {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  border: 2px solid #111111;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #111111;
+  transition: all 0.3s;
+  flex-shrink: 0;
+  margin-left: 24px;
+}
+.accordion-icon.active {
+  background: #111111;
+  color: #ccff00;
+}
+.accordion-content {
+  margin-top: 40px;
+  display: grid;
+  grid-template-columns: 1fr 1.5fr 1fr;
+  gap: 60px;
+  animation: slideDown 0.4s ease forwards;
+  align-items: start;
+}
+.accordion-summary {
+  font-size: 1.4rem;
+  font-weight: 500;
+  color: #111111;
+  line-height: 1.5;
+  margin: 0;
+}
+.accordion-detail {
+  font-size: 1rem;
+  color: rgba(0,0,0,0.8);
+  line-height: 1.6;
+  margin: 0 0 32px 0;
+}
+.accordion-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.accordion-tag {
+  font-size: 0.75rem;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  padding: 6px 16px;
+  border: 1px solid #111111;
+  border-radius: 30px;
+  color: #111111;
+  text-transform: uppercase;
+}
+.accordion-image {
+  width: 100%;
+  height: 250px;
+  object-fit: cover;
+  border-radius: 20px;
+}
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 /* ── Pricing ── */
 .pricing-section {
   padding: 120px 40px;
@@ -870,6 +974,13 @@
     grid-template-columns: 1fr;
     gap: 40px;
   }
+  .accordion-content {
+    grid-template-columns: 1fr;
+    gap: 40px;
+  }
+  .accordion-image {
+    height: 300px;
+  }
   .solid-info-content {
     padding: 80px 40px;
   }
@@ -937,6 +1048,18 @@
     gap: 16px;
     text-align: center;
   }
+  .programs-accordion-section {
+    padding-top: 80px;
+    padding-bottom: 80px;
+  }
+  .accordion-title {
+    font-size: 2.2rem;
+  }
+  .accordion-icon {
+    width: 40px;
+    height: 40px;
+    margin-left: 16px;
+  }
 }
 
 @media (max-width: 480px) {
@@ -945,6 +1068,7 @@
   .feature-block-section,
   .action-styles-section,
   .pricing-section,
+  .programs-accordion-section,
   .about-scatter-section,
   .legal-page-main,
   .courto-footer {
@@ -964,5 +1088,24 @@
   .footer-blob-container {
     border-radius: 60px 30px 60px 30px;
     padding: 40px 30px;
+  }
+  .programs-accordion-section {
+    padding-top: 60px;
+    padding-bottom: 60px;
+  }
+  .accordion-title {
+    font-size: 1.8rem;
+  }
+  .accordion-item {
+    padding: 24px 0;
+  }
+  .accordion-summary {
+    font-size: 1.1rem;
+  }
+  .accordion-detail {
+    font-size: 0.95rem;
+  }
+  .accordion-image {
+    height: 200px;
   }
 }
