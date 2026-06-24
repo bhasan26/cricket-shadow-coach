@@ -2,19 +2,31 @@ import React, { useState } from 'react';
 import CameraFeed from './CameraFeed';
 import VideoDashboard from './VideoDashboard';
 import LandingPage from './LandingPage';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import TermsOfService from './pages/TermsOfService';
+import ContactUs from './pages/ContactUs';
 import './App.css';
 
 function App() {
   const [activeTab, setActiveTab] = useState('home');
 
   if (activeTab === 'home') {
-    return <LandingPage onStartAnalysis={() => setActiveTab('live')} />;
+    return <LandingPage onStartAnalysis={() => setActiveTab('live')} onNavigate={setActiveTab} />;
+  }
+  if (activeTab === 'privacy') {
+    return <PrivacyPolicy onNavigate={setActiveTab} />;
+  }
+  if (activeTab === 'terms') {
+    return <TermsOfService onNavigate={setActiveTab} />;
+  }
+  if (activeTab === 'contact') {
+    return <ContactUs onNavigate={setActiveTab} />;
   }
 
   return (
     <div style={{ 
       minHeight: '100vh',
-      background: 'transparent',
+      background: '#050505',
       fontFamily: "'Plus Jakarta Sans', 'Inter', system-ui, sans-serif",
       color: '#f8fafc',
     }}>
