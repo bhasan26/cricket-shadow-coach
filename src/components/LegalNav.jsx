@@ -12,7 +12,7 @@ export default function LegalNav({ onNavigate }) {
   return (
     <nav className={`courto-nav ${scrolled ? 'scrolled' : ''}`} style={{ background: scrolled ? 'var(--bg-glass-heavy)' : 'var(--bg-surface)' }}>
       <div className="nav-container">
-        <div className="nav-logo" style={{ color: '#111111' }}>
+        <div className="nav-logo" style={{ color: '#111111', cursor: 'pointer' }} onClick={() => { window.scrollTo(0,0); if (onNavigate) onNavigate('home'); }}>
           CRICKET<span>COACH</span>
         </div>
         <div className="nav-actions">

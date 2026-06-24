@@ -35,7 +35,7 @@ function LandingPage({ onStartAnalysis, onNavigate }) {
       {/* ── Navigation ── */}
       <nav className={`courto-nav ${scrolled ? 'scrolled' : ''}`}>
         <div className="nav-container">
-          <div className="nav-logo">
+          <div className="nav-logo" style={{ cursor: 'pointer' }} onClick={() => { window.scrollTo(0,0); if (onNavigate) onNavigate('home'); }}>
             CRICKET<span>COACH</span>
           </div>
 
@@ -224,27 +224,65 @@ function LandingPage({ onStartAnalysis, onNavigate }) {
         </div>
       </section>
 
-      {/* ── About Us & Privacy Section ── */}
-      <section id="about" className="about-privacy-section">
-        <div className="about-container reveal">
-          <div className="about-header">
-            <h4 className="section-subtitle">ABOUT US</h4>
-            <h2 className="section-title">YOUR PRIVACY IS <span className="text-neon">ABSOLUTE</span></h2>
-          </div>
-          <div className="about-content">
-            <div className="about-card">
-              <div className="about-icon">
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+      {/* ── About Us Scattered Layout ── */}
+      <section id="about" className="about-scatter-section">
+        <div className="scatter-header-wrapper reveal">
+          <div className="section-pill">ABOUT US</div>
+          <h2 className="scatter-title">AN INDEPENDENT PROJECT FOR<br/>THE LOVERS OF CRICKET</h2>
+        </div>
+
+        <div className="scatter-pills-container reveal">
+          <div className="spill s-black spill-1">PASSION PROJECT</div>
+          <div className="spill s-outline spill-2">FOR ALL LEVELS</div>
+          <div className="spill s-neon spill-3">100% LOCAL</div>
+          <div className="spill s-outline spill-4">NO CLOUD</div>
+          <div className="spill s-black spill-5">BIOMECHANICS</div>
+          <div className="spill s-neon spill-6">FREE BETA</div>
+          <div className="spill s-black spill-7">AI POWERED</div>
+          <div className="spill s-outline spill-8">PRIVATE</div>
+          <div className="spill s-outline spill-9">FOR CRICKET</div>
+        </div>
+
+        <div className="scatter-cards-container reveal reveal-delay-2">
+          {/* Card 1 */}
+          <div className="scatter-card">
+            <div className="scatter-quote-icon">"</div>
+            <h3 className="scatter-card-title">100% LOCAL PROCESSING</h3>
+            <p className="scatter-card-text">"Unlike other platforms, we don't upload your videos to the cloud. Our computer vision models run entirely on your device inside your browser. Your technique data never leaves your computer."</p>
+            <div className="scatter-card-author">
+              <div className="scatter-author-img"></div>
+              <div className="scatter-author-info">
+                <h4>DATA PRIVACY</h4>
+                <p>CORE PRINCIPLE</p>
               </div>
-              <h3>100% LOCAL PROCESSING</h3>
-              <p>Unlike other platforms, we don't upload your videos to the cloud. Our computer vision models run entirely on your device inside your browser. Your technique data never leaves your computer.</p>
             </div>
-            <div className="about-card">
-              <div className="about-icon">
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+          </div>
+          
+          {/* Card 2 */}
+          <div className="scatter-card">
+            <div className="scatter-quote-icon">"</div>
+            <h3 className="scatter-card-title">OUR MISSION</h3>
+            <p className="scatter-card-text">"Cricket Coach is built to democratize access to elite biomechanical analysis. We believe every player deserves laboratory-grade technique feedback without privacy compromises."</p>
+            <div className="scatter-card-author">
+              <div className="scatter-author-img"></div>
+              <div className="scatter-author-info">
+                <h4>GLOBAL ACCESS</h4>
+                <p>DEMOCRATIZED AI</p>
               </div>
-              <h3>OUR MISSION</h3>
-              <p>Cricket Coach is built to democratize access to elite biomechanical analysis. We believe every player deserves laboratory-grade technique feedback without privacy compromises.</p>
+            </div>
+          </div>
+
+          {/* Card 3 */}
+          <div className="scatter-card">
+            <div className="scatter-quote-icon">"</div>
+            <h3 className="scatter-card-title">BUILT BY FANS, FOR FANS</h3>
+            <p className="scatter-card-text">"This is a totally independent passion project. Built by a true lover of the game, dedicated entirely to the millions of cricket lovers around the world who want to perfect their technique."</p>
+            <div className="scatter-card-author">
+              <div className="scatter-author-img" style={{ background: 'var(--accent-mint)' }}></div>
+              <div className="scatter-author-info">
+                <h4>BILAL HASAN</h4>
+                <p>CREATOR & ENGINEER</p>
+              </div>
             </div>
           </div>
         </div>
