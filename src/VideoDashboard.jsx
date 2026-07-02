@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { Helmet } from 'react-helmet-async';
 
 function VideoDashboard() {
   const [userVideo, setUserVideo] = useState(null);
@@ -77,7 +78,12 @@ function VideoDashboard() {
   };
 
   return (
-    <div className="cyber-card" style={{ padding: '30px', minHeight: '650px', background: 'rgba(15, 23, 42, 0.65)' }}>
+    <>
+      <Helmet>
+        <title>Video Dashboard — Side-by-Side Cricket Technique Comparison</title>
+        <meta name="description" content="Upload and compare your cricket technique against professional footage frame-by-frame with adjustable playback and A/B looping, processed locally in your browser." />
+      </Helmet>
+      <div className="cyber-card" style={{ padding: '30px', minHeight: '650px', background: 'rgba(15, 23, 42, 0.65)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px' }}>
         <h2 style={{ color: '#00f5a0', margin: 0, textTransform: 'uppercase', letterSpacing: '2px', fontSize: '1.2rem', fontWeight: 900 }}>
           Advanced Video Dashboard
@@ -177,7 +183,8 @@ function VideoDashboard() {
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }
 

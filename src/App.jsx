@@ -1,11 +1,29 @@
-import React, { useState } from 'react';
-import CameraFeed from './CameraFeed';
-import VideoDashboard from './VideoDashboard';
+import React, { useState, Suspense, lazy } from 'react';
 import LandingPage from './LandingPage';
-import PrivacyPolicy from './pages/PrivacyPolicy';
-import TermsOfService from './pages/TermsOfService';
-import ContactUs from './pages/ContactUs';
 import './App.css';
+
+// Lazy load the heavy canvas/AI modules so they don't bloat the initial landing page bundle
+const CameraFeed = lazy(() => import('./CameraFeed'));
+const VideoDashboard = lazy(() => import('./VideoDashboard'));
+const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
+const TermsOfService = lazy(() => import('./pages/TermsOfService'));
+const ContactUs = lazy(() => import('./pages/ContactUs'));
+
+const LoadingFallback = () => (
+  <div style={{
+    minHeight: '100vh',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    background: '#050505',
+    color: '#00f5a0',
+    fontWeight: 800,
+    letterSpacing: '1px',
+    textTransform: 'uppercase',
+  }}>
+    Loading AI Modules...
+  </div>
+);
 
 function App() {
   const [activeTab, setActiveTab] = useState('home');
@@ -14,13 +32,25 @@ function App() {
     return <LandingPage onStartAnalysis={() => setActiveTab('live')} onNavigate={setActiveTab} />;
   }
   if (activeTab === 'privacy') {
-    return <PrivacyPolicy onNavigate={setActiveTab} />;
+    return (
+      <Suspense fallback={<LoadingFallback />}>
+        <PrivacyPolicy onNavigate={setActiveTab} />
+      </Suspense>
+    );
   }
   if (activeTab === 'terms') {
-    return <TermsOfService onNavigate={setActiveTab} />;
+    return (
+      <Suspense fallback={<LoadingFallback />}>
+        <TermsOfService onNavigate={setActiveTab} />
+      </Suspense>
+    );
   }
   if (activeTab === 'contact') {
-    return <ContactUs onNavigate={setActiveTab} />;
+    return (
+      <Suspense fallback={<LoadingFallback />}>
+        <ContactUs onNavigate={setActiveTab} />
+      </Suspense>
+    );
   }
 
   return (
@@ -233,7 +263,9 @@ function App() {
 
       {/* Main Grid Dashboard */}
       <main className="main-content" style={{ maxWidth: '1440px', margin: '0 auto', padding: '20px' }}>
-        {activeTab === 'live' ? <CameraFeed /> : <VideoDashboard />}
+        <Suspense fallback={<LoadingFallback />}>
+          {activeTab === 'live' ? <CameraFeed /> : <VideoDashboard />}
+        </Suspense>
       </main>
 
       {/* Enhanced Trust & Branding Footer */}

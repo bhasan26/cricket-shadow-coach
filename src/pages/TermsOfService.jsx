@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { Helmet } from 'react-helmet-async';
 import LegalNav from '../components/LegalNav';
 import Footer from '../components/Footer';
 
@@ -9,6 +10,10 @@ export default function TermsOfService({ onNavigate }) {
 
   return (
     <div className="courto-landing" style={{ background: 'var(--bg-base)' }}>
+      <Helmet>
+        <title>Terms of Service — Cricket Shadow Coach</title>
+        <meta name="description" content="Read the terms of service for Cricket Shadow Coach's free AI-powered cricket batting and bowling technique analysis tool." />
+      </Helmet>
       <LegalNav onNavigate={onNavigate} />
       
       <main className="legal-page-main">

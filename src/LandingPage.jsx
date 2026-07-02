@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Helmet } from 'react-helmet-async';
 import Footer from './components/Footer';
 import './LandingPage.css';
 
@@ -64,7 +65,13 @@ function LandingPage({ onStartAnalysis, onNavigate }) {
 
   return (
     <div className="courto-landing">
+      <Helmet>
+        <title>Cricket Shadow Coach — Free AI Batting & Bowling Analysis</title>
+        <meta name="description" content="Free, real-time AI biomechanical analysis for cricket. Track 33+ skeletal landmarks for batting strokes and check ICC bowling legality in your browser." />
+        <link rel="canonical" href="https://www.cricketcoach.online/" />
+      </Helmet>
       {/* ── Navigation ── */}
+      <header>
       <nav className={`courto-nav ${scrolled ? 'scrolled' : ''}`}>
         <div className="nav-container">
           <div className="nav-logo" style={{ cursor: 'pointer' }} onClick={() => { window.scrollTo(0, 0); if (onNavigate) onNavigate('home'); }}>
@@ -108,11 +115,13 @@ function LandingPage({ onStartAnalysis, onNavigate }) {
           </div>
         </div>
       </nav>
+      </header>
 
+      <main>
       {/* ── Hero Section ── */}
       <section className="courto-hero">
         <div className="hero-bg">
-          <img src="/hero_cricket_bat.jpg" alt="Cricket Bat and Ball" className="hero-img" />
+          <img src="/hero_cricket_bat.jpg" alt="Cricket bat and ball, symbolizing AI-powered batting and bowling technique analysis" className="hero-img" />
           <div className="hero-overlay"></div>
         </div>
 
@@ -162,7 +171,7 @@ function LandingPage({ onStartAnalysis, onNavigate }) {
       <section id="how-it-works" className="feature-block-section">
         <div className="feature-block">
           <div className="feature-block-img reveal">
-            <img src="/cricket_batting_hero.png" alt="Batting Analysis" />
+            <img src="/cricket_batting_hero.png" alt="AI skeletal landmark tracking overlay on a cricket batter's stroke" />
             <div className="feature-glass-tag">
               <span className="dot"></span> REAL-TIME TRACKING
             </div>
@@ -195,7 +204,7 @@ function LandingPage({ onStartAnalysis, onNavigate }) {
         <div className="styles-grid">
           {/* Card 1 */}
           <div className="style-card reveal">
-            <img src="/kagiso_rabada_fastballer.png" alt="Fast Bowling" className="style-card-bg" />
+            <img src="/kagiso_rabada_fastballer.png" alt="Fast bowler mid-delivery, analyzed for ICC-legal arm extension" className="style-card-bg" />
             <div className="style-card-overlay">
               <div className="style-card-tag">BOWLING</div>
               <h3 className="style-card-title">FAST BOWLING</h3>
@@ -204,7 +213,7 @@ function LandingPage({ onStartAnalysis, onNavigate }) {
           </div>
           {/* Card 2 */}
           <div className="style-card reveal reveal-delay-1">
-            <img src="/shane_warne_hero.png" alt="Leg Spin" className="style-card-bg" />
+            <img src="/shane_warne_hero.png" alt="Spin bowler releasing the ball, tracked for drift, turn, and release point" className="style-card-bg" />
             <div className="style-card-overlay">
               <div className="style-card-tag">BOWLING</div>
               <h3 className="style-card-title">SPIN BOWLING</h3>
@@ -213,7 +222,7 @@ function LandingPage({ onStartAnalysis, onNavigate }) {
           </div>
           {/* Card 3 */}
           <div className="style-card reveal reveal-delay-2">
-            <img src="/babar_azam_coverdrive_hero.png" alt="Cover Drive" className="style-card-bg" />
+            <img src="/babar_azam_coverdrive_hero.png" alt="Batter executing a cover drive, checked for head alignment and full bat face" className="style-card-bg" />
             <div className="style-card-overlay">
               <div className="style-card-tag">BATTING</div>
               <h3 className="style-card-title">COVER DRIVE</h3>
@@ -222,7 +231,7 @@ function LandingPage({ onStartAnalysis, onNavigate }) {
           </div>
           {/* Card 4 */}
           <div className="style-card reveal reveal-delay-3">
-            <img src="/rohit_sharma_pull_hero.png" alt="Pull Shot" className="style-card-bg" />
+            <img src="/rohit_sharma_pull_hero.png" alt="Batter playing a pull shot, analyzed for weight transfer and bat swing path" className="style-card-bg" />
             <div className="style-card-overlay">
               <div className="style-card-tag">BATTING</div>
               <h3 className="style-card-title">PULL SHOT</h3>
@@ -244,7 +253,7 @@ function LandingPage({ onStartAnalysis, onNavigate }) {
           </button>
         </div>
         <div className="solid-info-visual">
-          <img src="/cricket_bowler_hero.png" alt="Biomechanical Overlay" />
+          <img src="/cricket_bowler_hero.png" alt="AI cricket analysis overlay showing a legal 14 degree bowling elbow angle" />
           <div className="bio-glass-card top-right">
             <span className="bio-label">ELBOW ANGLE</span>
             <span className="bio-val">14° LEGAL</span>
@@ -355,7 +364,7 @@ function LandingPage({ onStartAnalysis, onNavigate }) {
                       </div>
                     </div>
                     <div className="accordion-image-col">
-                      <img src={prog.image} alt={prog.title} className="accordion-image" />
+                      <img src={prog.image} alt={`Cricket player representing the ${prog.title.toLowerCase()} coaching program`} className="accordion-image" />
                     </div>
                   </div>
                 )}
@@ -401,6 +410,8 @@ function LandingPage({ onStartAnalysis, onNavigate }) {
           </div>
         </div>
       </section>
+
+      </main>
 
       {/* ── Footer ── */}
       <Footer onNavigate={onNavigate} />

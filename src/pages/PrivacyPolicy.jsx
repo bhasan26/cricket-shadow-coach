@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { Helmet } from 'react-helmet-async';
 import LegalNav from '../components/LegalNav';
 import Footer from '../components/Footer';
 
@@ -9,6 +10,10 @@ export default function PrivacyPolicy({ onNavigate }) {
 
   return (
     <div className="courto-landing" style={{ background: 'var(--bg-base)' }}>
+      <Helmet>
+        <title>Privacy Policy — Cricket Shadow Coach</title>
+        <meta name="description" content="Cricket Shadow Coach processes all video and biomechanical data locally in your browser. Read our privacy policy on local-first data processing." />
+      </Helmet>
       <LegalNav onNavigate={onNavigate} />
       
       <main className="legal-page-main">

@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { Helmet } from 'react-helmet-async';
 import LegalNav from '../components/LegalNav';
 import Footer from '../components/Footer';
 
@@ -9,6 +10,10 @@ export default function ContactUs({ onNavigate }) {
 
   return (
     <div className="courto-landing" style={{ background: 'var(--bg-base)' }}>
+      <Helmet>
+        <title>Contact Us — Cricket Shadow Coach</title>
+        <meta name="description" content="Get in touch with the Cricket Shadow Coach team for questions, feedback, or academy partnership inquiries." />
+      </Helmet>
       <LegalNav onNavigate={onNavigate} />
       
       <main className="legal-page-main">

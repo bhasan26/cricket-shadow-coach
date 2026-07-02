@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { Helmet } from 'react-helmet-async';
 import { createPoseDetector } from './poseUtils';
 import { drawSkeleton, calculateAngleJS, calculateSpineTiltJS } from './drawSkeleton';
 import { analyzeShotSequence, checkAPIHealth, fetchShots } from './api';
@@ -443,7 +444,12 @@ function CameraFeed() {
   };
 
   return (
-    <div className="dashboard-journey">
+    <>
+      <Helmet>
+        <title>Live Cricket Analysis — AI Batting & Bowling Legality Checker</title>
+        <meta name="description" content="Use your camera for real-time cricket technique analysis. Instantly score batting strokes and check bowling arm extension against ICC legality rules." />
+      </Helmet>
+      <div className="dashboard-journey">
       {/* Step 1: Choose Shot */}
       <div className={`cyber-card ${mobileTab !== 'choose-shot' ? 'mobile-hide' : ''}`} style={{ padding: '24px' }}>
         <div className="step-header">
@@ -910,7 +916,8 @@ function CameraFeed() {
           RESULTS
         </button>
       </div>
-    </div>
+      </div>
+    </>
   );
 }
 
