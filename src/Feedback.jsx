@@ -129,6 +129,39 @@ function Feedback({ score, message, shotName = '', analysisResult = null, histor
         {message || 'Ready for shadow practice. Calibrate your feet in the footprint blueprints and swing.'}
       </div>
 
+      {/* Camera-angle warning (side-on filming makes elbow angles unreliable) */}
+      {analysisResult?.camera_angle_warning && (
+        <div style={{
+          fontSize: '0.78rem', color: '#ff9f0d', lineHeight: 1.5,
+          padding: '12px 14px', marginBottom: '14px', borderRadius: '12px',
+          background: 'rgba(255, 159, 13, 0.06)', border: '1px solid rgba(255, 159, 13, 0.25)',
+        }}>
+          📐 {analysisResult.camera_angle_warning}
+        </div>
+      )}
+
+      {/* Low tracking-quality warning */}
+      {analysisResult && typeof analysisResult.tracking_quality === 'number' && analysisResult.tracking_quality < 60 && (
+        <div style={{
+          fontSize: '0.78rem', color: '#ff3366', lineHeight: 1.5,
+          padding: '12px 14px', marginBottom: '14px', borderRadius: '12px',
+          background: 'rgba(255, 51, 102, 0.06)', border: '1px solid rgba(255, 51, 102, 0.25)',
+        }}>
+          ⚠️ Low tracking quality ({Math.round(analysisResult.tracking_quality)}%). Stand fully in frame with good lighting for a reliable score.
+        </div>
+      )}
+
+      {/* Indicative-screen disclaimer for the bowling legality check */}
+      {analysisResult?.disclaimer && (
+        <div style={{
+          fontSize: '0.72rem', color: '#94a3b8', lineHeight: 1.5, fontStyle: 'italic',
+          padding: '12px 14px', marginBottom: '14px', borderRadius: '12px',
+          background: 'rgba(8, 14, 27, 0.5)', border: '1px solid rgba(255,255,255,0.05)',
+        }}>
+          ⓘ {analysisResult.disclaimer}
+        </div>
+      )}
+
       {/* Share result — appears once a drill has been analysed */}
       {hasDetails && (
         <button

@@ -26,23 +26,36 @@ def calculate_dtw_distance(user_sequence, ideal_sequence):
     """
     if not user_sequence or not ideal_sequence:
         return float('inf'), 0.0
-    
+
     # Convert to numpy arrays for distance calculation
     user_array = np.array(user_sequence, dtype=np.float32).reshape(-1, 1)
     ideal_array = np.array(ideal_sequence, dtype=np.float32).reshape(-1, 1)
-    
+
     try:
-        distance, _ = fastdtw(user_array, ideal_array, dist=euclidean)
-        
-        # Normalize: smaller distance = better match
-        # We expect distances in the range of 0-180 (angle range)
-        # Map to 0-100 score where 100 is perfect
-        normalized = max(0, 100 - min(100, distance))
-        
-        return distance, normalized
+        distance, path = fastdtw(user_array, ideal_array, dist=euclidean)
+        return distance, dtw_score(distance, path)
     except Exception as e:
         print(f"DTW calculation error: {e}")
         return float('inf'), 0.0
+
+
+# Calibration constant mapping average per-step DTW deviation (in degrees) to a
+# score penalty. Tuned via api/eval so a clean rep lands ~80-95 (see run_eval.py).
+DTW_SCORE_K = 4.0
+
+
+def dtw_score(distance, path, k=DTW_SCORE_K):
+    """
+    Convert a raw DTW distance to a 0-100 score, normalized by the length of the
+    warping path so longer recordings aren't penalized just for being longer.
+
+    A raw distance grows with the number of matched steps; dividing by the path
+    length yields the average per-step deviation (roughly in degrees for a single
+    angle channel), which is comparable across recording durations.
+    """
+    steps = max(1, len(path))
+    per_step = distance / steps
+    return float(max(0.0, 100.0 - per_step * k))
 
 
 def calculate_angle_deviation(user_value, ideal_value, tolerance=5.0):

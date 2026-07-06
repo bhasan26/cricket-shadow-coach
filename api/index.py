@@ -2,7 +2,7 @@ import logging
 import os
 import sys
 import uuid
-from typing import List
+from typing import List, Optional
 
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -81,6 +81,10 @@ class FramePayload(BaseModel):
 class ShotSequencePayload(BaseModel):
     shot_sequence: List[List[Landmark]]
     shot_type: str = "cover_drive"
+    is_right_handed: bool = True
+    # Optional MediaPipe world landmarks (metric 3D). When present, backend angles
+    # are computed from these instead of the 2D image projection.
+    world_landmarks: Optional[List[List[Landmark]]] = None
 
     @field_validator("shot_sequence")
     @classmethod
@@ -105,6 +109,9 @@ class ShotAnalysisResponse(BaseModel):
     shot_type: str = "cover_drive"
     shot_name: str = "Cover Drive"
     angle_scores: dict = {}
+    tracking_quality: float = 100.0
+    disclaimer: str = ""
+    camera_angle_warning: str = ""
 
 
 def _frame_to_dicts(frame: List[Landmark]) -> List[dict]:
@@ -144,11 +151,19 @@ async def analyze_shot_sequence(payload: ShotSequencePayload):
             is_good_shot=False,
         )
     try:
-        angle_sequence = [
-            extract_shot_angles(_frame_to_dicts(frame))
-            for frame in payload.shot_sequence
-        ]
-        result = evaluate_shot(None, angle_sequence, shot_type=payload.shot_type)
+        world = payload.world_landmarks
+        angle_sequence = []
+        for i, frame in enumerate(payload.shot_sequence):
+            wl = None
+            if world and i < len(world) and len(world[i]) == POSE_LANDMARK_COUNT:
+                wl = _frame_to_dicts(world[i])
+            angle_sequence.append(extract_shot_angles(_frame_to_dicts(frame), world_landmarks=wl))
+
+        result = evaluate_shot(
+            None, angle_sequence,
+            shot_type=payload.shot_type,
+            is_right_handed=payload.is_right_handed,
+        )
         return ShotAnalysisResponse(
             score=result.get("score", 0),
             feedback=result.get("feedback", "Shot analyzed"),
@@ -156,6 +171,9 @@ async def analyze_shot_sequence(payload: ShotSequencePayload):
             shot_type=result.get("shot_type", payload.shot_type),
             shot_name=result.get("shot_name", "Cover Drive"),
             angle_scores=result.get("angle_scores", {}),
+            tracking_quality=result.get("tracking_quality", 100.0),
+            disclaimer=result.get("disclaimer", ""),
+            camera_angle_warning=result.get("camera_angle_warning", ""),
         )
     except Exception:
         logger.exception("analyze_shot failed")

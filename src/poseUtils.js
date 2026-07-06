@@ -86,7 +86,10 @@ export function createPoseDetector(videoElement, onPoseLandmarks) {
     try {
       pose = await initPose();
       pose.onResults((results) => {
-        onPoseLandmarks(results.poseLandmarks || null);
+        // Pass both 2D image landmarks (for drawing) and metric 3D world
+        // landmarks (for accurate backend angles). World landmarks may be absent
+        // on some devices — callers fall back to 2D.
+        onPoseLandmarks(results.poseLandmarks || null, results.poseWorldLandmarks || null);
       });
       initialized = true;
       console.log('MediaPipe Pose initialized successfully');

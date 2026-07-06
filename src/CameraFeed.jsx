@@ -93,6 +93,15 @@ function CameraFeed() {
   // Toggles for features
   const [autoRecordEnabled, setAutoRecordEnabled] = useState(false);
   const [ghostEnabled, setGhostEnabled] = useState(true);
+  // Batting handedness — persisted so returning left-handers don't re-toggle.
+  const [isRightHanded, setIsRightHanded] = useState(() => {
+    try {
+      return localStorage.getItem('shadow_is_right_handed') !== 'false';
+    } catch {
+      return true;
+    }
+  });
+  const isRightHandedRef = useRef(true);
   // Rear camera by default — users prop the phone up and stand back for a full-body shot.
   const [facingMode, setFacingMode] = useState('environment');
 
@@ -119,6 +128,10 @@ function CameraFeed() {
   useEffect(() => { ghostEnabledRef.current = ghostEnabled; }, [ghostEnabled]);
   useEffect(() => { selectedShotRef.current = selectedShot; }, [selectedShot]);
   useEffect(() => { isAnalyzingRef.current = isAnalyzing; }, [isAnalyzing]);
+  useEffect(() => {
+    isRightHandedRef.current = isRightHanded;
+    try { localStorage.setItem('shadow_is_right_handed', String(isRightHanded)); } catch { /* ignore quota */ }
+  }, [isRightHanded]);
 
   // Trigger vocal prompts on drill change
   useEffect(() => {
@@ -184,7 +197,10 @@ function CameraFeed() {
     
     try {
       const sequence = frames.map(f => f.landmarks);
-      const result = await analyzeShotSequence(sequence, selectedShot);
+      // Include world landmarks only if every frame captured them.
+      const worldFrames = frames.map(f => f.world);
+      const worldSequence = worldFrames.every(Boolean) ? worldFrames : null;
+      const result = await analyzeShotSequence(sequence, selectedShot, worldSequence, isRightHandedRef.current);
       
       setCurrentScore(result.score || 0);
       setCurrentFeedback(result.feedback || 'Analysis complete');
@@ -239,7 +255,7 @@ function CameraFeed() {
   // Stable per-frame callback. Reads volatile UI state through refs so its identity
   // never changes — this is what keeps the MediaPipe detector effect from tearing
   // down and rebuilding the detector on every analysis / selection change.
-  const handlePoseLandmarks = useCallback((landmarks) => {
+  const handlePoseLandmarks = useCallback((landmarks, worldLandmarks) => {
     if (!landmarks) return;
 
     const autoRecordEnabled = autoRecordEnabledRef.current;
@@ -282,6 +298,10 @@ function CameraFeed() {
     if (isRecordingRef.current) {
       frameBufferRef.current.push({
         landmarks: landmarks.map(lm => ({ x: lm.x, y: lm.y, z: lm.z, visibility: lm.visibility || 1.0 })),
+        // Metric 3D world landmarks (when available) power accurate backend angles.
+        world: worldLandmarks
+          ? worldLandmarks.map(lm => ({ x: lm.x, y: lm.y, z: lm.z, visibility: lm.visibility || 1.0 }))
+          : null,
         timestamp: Date.now(),
       });
     }
@@ -434,7 +454,7 @@ function CameraFeed() {
     video.addEventListener('resize', syncSize);
     // Pass a stable wrapper that dispatches to the latest callback via ref, so the
     // detector is created exactly once per camera session (not per state change).
-    const detector = createPoseDetector(video, (lm) => handlePoseLandmarksRef.current(lm));
+    const detector = createPoseDetector(video, (lm, wl) => handlePoseLandmarksRef.current(lm, wl));
     poseDetectorRef.current = detector;
     detector.start().then(() => {
       setPoseReady(true);
@@ -853,7 +873,14 @@ function CameraFeed() {
             }}>
               Cockpit Command
             </h3>
-            <Controls onStart={handleStart} onStop={handleStop} isRecording={isRecording} isAnalyzing={isAnalyzing} />
+            <Controls
+              onStart={handleStart}
+              onStop={handleStop}
+              isRecording={isRecording}
+              isAnalyzing={isAnalyzing}
+              isRightHanded={isRightHanded}
+              onToggleHandedness={(v) => { unlockMobileAudio(); setIsRightHanded(v); }}
+            />
             
             {/* Hands-Free Auto-Record Toggle */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '24px', paddingTop: '20px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>

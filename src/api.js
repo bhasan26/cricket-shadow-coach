@@ -9,12 +9,14 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 /**
  * Analyze a complete shot sequence
- * 
- * @param {Array} shotSequence - Array of pose landmark arrays over time
+ *
+ * @param {Array} shotSequence - Array of 2D pose landmark arrays over time
  * @param {string} shotType - Shot type key (e.g., 'cover_drive', 'pull_shot')
+ * @param {Array|null} worldSequence - Optional metric 3D world landmark arrays
+ * @param {boolean} isRightHanded - Batting handedness (default true)
  * @returns {Promise} Response containing overall score and feedback
  */
-export async function analyzeShotSequence(shotSequence, shotType = 'cover_drive') {
+export async function analyzeShotSequence(shotSequence, shotType = 'cover_drive', worldSequence = null, isRightHanded = true) {
   try {
     const response = await fetch(`${API_BASE_URL}/analyze-shot`, {
       method: 'POST',
@@ -24,6 +26,8 @@ export async function analyzeShotSequence(shotSequence, shotType = 'cover_drive'
       body: JSON.stringify({
         shot_sequence: shotSequence,
         shot_type: shotType,
+        is_right_handed: isRightHanded,
+        ...(worldSequence ? { world_landmarks: worldSequence } : {}),
       }),
     });
 

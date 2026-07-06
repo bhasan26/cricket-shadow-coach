@@ -466,10 +466,13 @@ def get_feedback_for_angle(angle_name, user_value):
     Returns:
         String: Feedback message (empty string if within acceptable range)
     """
+    if user_value is None:
+        return ""
+
     threshold = get_angle_threshold(angle_name)
     if not threshold:
         return ""
-    
+
     ideal = threshold.get("ideal", 0)
     deviation = user_value - ideal
     

@@ -1,5 +1,5 @@
 
-function Controls({ onStart, onStop, isRecording, isAnalyzing }) {
+function Controls({ onStart, onStop, isRecording, isAnalyzing, isRightHanded = true, onToggleHandedness }) {
   const btnBase = {
     padding: '14px 24px',
     fontSize: '0.88rem',
@@ -17,8 +17,39 @@ function Controls({ onStart, onStop, isRecording, isAnalyzing }) {
     textTransform: 'uppercase'
   };
 
+  const handBtn = (active) => ({
+    flex: 1,
+    padding: '10px',
+    fontSize: '0.8rem',
+    fontWeight: 800,
+    borderRadius: '10px',
+    cursor: isRecording ? 'not-allowed' : 'pointer',
+    textTransform: 'uppercase',
+    letterSpacing: '0.5px',
+    border: active ? '1px solid rgba(0, 245, 160, 0.4)' : '1px solid rgba(255,255,255,0.08)',
+    background: active ? 'rgba(0, 245, 160, 0.15)' : 'transparent',
+    color: active ? '#00f5a0' : '#94a3b8',
+    transition: 'all 0.2s',
+  });
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      {/* Batting handedness — mirrors the ideal model so left-handers score fairly */}
+      {onToggleHandedness && (
+        <div>
+          <div style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>
+            Batting Hand
+          </div>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button type="button" disabled={isRecording} onClick={() => onToggleHandedness(true)} style={handBtn(isRightHanded)}>
+              Right-Handed
+            </button>
+            <button type="button" disabled={isRecording} onClick={() => onToggleHandedness(false)} style={handBtn(!isRightHanded)}>
+              Left-Handed
+            </button>
+          </div>
+        </div>
+      )}
       <button
         type="button"
         onClick={onStart}
