@@ -167,17 +167,26 @@ def extract_shot_angles(landmarks, world_landmarks=None):
     """
     coords = world_landmarks if world_landmarks else None
 
+    # Phase/window detection positions are deliberately taken from SCREEN space
+    # (normalized image coords, y grows downward): "wrist above shoulder" and
+    # "upper arm past horizontal" are camera-relative notions, and screen y is
+    # stable across MediaPipe versions, whereas world-landmark y is meters
+    # relative to the hip center with a different sign convention.
     try:
         left_wrist_y = float(landmarks[15]["y"])
         left_shoulder_y = float(landmarks[11]["y"])
         right_wrist_y = float(landmarks[16]["y"])
         right_shoulder_y = float(landmarks[12]["y"])
+        left_elbow_y = float(landmarks[13]["y"])
+        right_elbow_y = float(landmarks[14]["y"])
         nose_y = float(landmarks[0]["y"])
     except (KeyError, IndexError, TypeError):
         left_wrist_y = 1.0
         left_shoulder_y = 0.5
         right_wrist_y = 1.0
         right_shoulder_y = 0.5
+        left_elbow_y = 0.75
+        right_elbow_y = 0.75
         nose_y = 0.0
 
     return {
@@ -192,6 +201,8 @@ def extract_shot_angles(landmarks, world_landmarks=None):
         "left_shoulder_y": left_shoulder_y,
         "right_wrist_y": right_wrist_y,
         "right_shoulder_y": right_shoulder_y,
+        "left_elbow_y": left_elbow_y,
+        "right_elbow_y": right_elbow_y,
         "nose_y": nose_y,
         # True when joint angles came from metric 3D world landmarks. Downstream
         # checks use this to skip 2D-foreshortening compensation.

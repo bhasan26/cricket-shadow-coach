@@ -218,12 +218,15 @@ function CameraFeed() {
       setMobileTab('results');
 
       if (selectedShot === 'bowling_action') {
-        const isCompliant = result.score >= 80;
+        // Indicative estimate only — 30fps webcam analysis cannot adjudicate
+        // ICC compliance (official testing is 250fps lab motion capture).
+        const isWithinGuideline = result.is_good_shot;
         const extension = result.angle_scores?.bowling_arm_extension?.toFixed(1) || 0;
-        if (isCompliant) {
-          speakCoachingCue(`Legal delivery! Action compliant at ${extension} degrees. Biomechanics score ${result.score}.`, true);
+        const lowConfidence = result.confidence === 'low';
+        if (isWithinGuideline) {
+          speakCoachingCue(`Estimated extension ${extension} degrees, within the 15 degree guideline. Score ${result.score}.${lowConfidence ? ' Low confidence — re-record with your full body visible.' : ''}`, true);
         } else {
-          speakCoachingCue(`Illegal delivery. Throwing detected. Elbow extended by ${extension} degrees. Lock your arm.`, true);
+          speakCoachingCue(`Estimated extension ${extension} degrees, exceeding the 15 degree guideline. This is indicative only, not an official assessment. Keep your arm locked.`, true);
         }
       } else {
         speakCoachingCue(`Drill complete. Accuracy score ${result.score} percent. ${result.feedback.split('|')[1] || ''}`, true);

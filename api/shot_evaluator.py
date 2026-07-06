@@ -213,6 +213,47 @@ def evaluate_batting_biomechanics(angle_sequence, is_right_handed=True, age_grou
     return feedback
 
 
+def _bowling_measurement_window(angle_sequence, arm_key, wrist_y_key, shoulder_y_key, elbow_y_key):
+    """
+    Isolate the ICC measurement window for elbow extension.
+
+    Start: first frame where the bowling upper arm passes horizontal — in screen
+    space (y down), elbow_y crossing from below to above shoulder_y — while the
+    wrist is above the elbow (arm swinging up, not hanging in the gather).
+    End (release): the frame where the wrist reaches its highest point at or
+    after the start.
+
+    Returns (elbow_angles_in_window, frame_count). Empty list when the payload
+    lacks elbow_y data or no crossing is found.
+    """
+    if not any(elbow_y_key in f for f in angle_sequence):
+        return [], 0
+
+    start = None
+    for i in range(1, len(angle_sequence)):
+        prev, cur = angle_sequence[i - 1], angle_sequence[i]
+        prev_below = prev.get(elbow_y_key, 1.0) >= prev.get(shoulder_y_key, 0.5)
+        now_above = cur.get(elbow_y_key, 1.0) < cur.get(shoulder_y_key, 0.5)
+        wrist_leading = cur.get(wrist_y_key, 1.0) <= cur.get(elbow_y_key, 1.0)
+        if prev_below and now_above and wrist_leading:
+            start = i
+            break
+    if start is None:
+        return [], 0
+
+    # Release = highest wrist position from the start onward.
+    release = min(
+        range(start, len(angle_sequence)),
+        key=lambda i: angle_sequence[i].get(wrist_y_key, 1.0),
+    )
+    if release <= start:
+        release = min(len(angle_sequence) - 1, start + 1)
+
+    window = angle_sequence[start: release + 1]
+    angles = [f[arm_key] for f in window if f.get(arm_key) and f[arm_key] > 0]
+    return angles, len(window)
+
+
 def evaluate_bowling_action(angle_sequence, is_right_handed=None, age_group="adult"):
     """
     Evaluate a bowling action sequence against ICC Rule 11.1 (15° elbow extension).
@@ -249,19 +290,32 @@ def evaluate_bowling_action(angle_sequence, is_right_handed=None, age_group="adu
     arm_key = "right_elbow" if is_right_handed else "left_elbow"
     arm_name = "Right-Arm" if is_right_handed else "Left-Arm"
 
-    # Extract delivery-phase frames (wrist above shoulder: wrist_y < shoulder_y).
-    delivery_frames = []
     wrist_y_key = "right_wrist_y" if is_right_handed else "left_wrist_y"
     shoulder_y_key = "right_shoulder_y" if is_right_handed else "left_shoulder_y"
+    elbow_y_key = "right_elbow_y" if is_right_handed else "left_elbow_y"
 
-    for f in angle_sequence:
-        if f.get(wrist_y_key, 1.0) < f.get(shoulder_y_key, 0.5):
-            elbow_val = f.get(arm_key)
-            if elbow_val and elbow_val > 0:
-                delivery_frames.append(elbow_val)
+    # ICC-style measurement window: from the frame where the upper arm passes
+    # horizontal (elbow rises above the shoulder in screen space, i.e. the
+    # shoulder→elbow y-component crosses 0 with the arm on the way up) to the
+    # release frame (wrist at its highest point). Elbow extension outside this
+    # window — e.g. during the gather — is legal and must not be counted.
+    delivery_frames, window_frame_count = _bowling_measurement_window(
+        angle_sequence, arm_key, wrist_y_key, shoulder_y_key, elbow_y_key
+    )
+    window_found = bool(delivery_frames)
 
     if not delivery_frames:
-        delivery_frames = channel_values(angle_sequence, arm_key)
+        # Fallback for clips where the window can't be isolated (older payloads
+        # without elbow_y, or partial visibility): all wrist-above-shoulder
+        # frames, else the whole tracked series. Confidence is reported low.
+        for f in angle_sequence:
+            if f.get(wrist_y_key, 1.0) < f.get(shoulder_y_key, 0.5):
+                elbow_val = f.get(arm_key)
+                if elbow_val and elbow_val > 0:
+                    delivery_frames.append(elbow_val)
+        if not delivery_frames:
+            delivery_frames = channel_values(angle_sequence, arm_key)
+        window_frame_count = len(delivery_frames)
 
     if len(delivery_frames) < 2:
         return {**base, "score": 20, "is_good_shot": False,
@@ -296,21 +350,35 @@ def evaluate_bowling_action(angle_sequence, is_right_handed=None, age_group="adu
 
     is_legal = elbow_extension <= 15.0
 
+    # Confidence: a proper measurement needs a real window with enough frames
+    # and well-tracked joints. 30fps webcam analysis is never authoritative —
+    # this flags when it isn't even a reliable estimate.
+    confidence = "normal"
+    if not window_found or window_frame_count < 5 or base["tracking_quality"] < 60:
+        confidence = "low"
+
     if is_legal:
         score = max(80, min(100, int(round(100 - (elbow_extension * 1.5)))))
-        verdict = f"✅ LIKELY LEGAL ({arm_name})"
+        verdict = f"✅ Estimated extension {elbow_extension:.1f}° ({arm_name})"
         feedback = (
-            f"{verdict} | Indicative elbow extension was {elbow_extension:.1f}°, within the "
-            f"ICC Rule 11.1 15° guideline (went from {min_elbow:.1f}° to {max_elbow:.1f}°). "
+            f"{verdict} | Within the ICC Rule 11.1 15° guideline "
+            f"(elbow went from {min_elbow:.1f}° to {max_elbow:.1f}° in the delivery window). "
             f"Smooth release with good straight-arm discipline."
         )
     else:
         score = max(10, min(55, int(round(100 - (elbow_extension - 15.0) * 4.0))))
-        verdict = f"⚠️ POSSIBLE THROW ({arm_name}, indicative)"
+        verdict = f"⚠️ Estimated extension {elbow_extension:.1f}° ({arm_name})"
         feedback = (
-            f"{verdict} | The ICC Rule 11.1 guideline is under 15° elbow extension. "
-            f"This clip indicated {elbow_extension:.1f}° (from {min_elbow:.1f}° to {max_elbow:.1f}°). "
+            f"{verdict} | Exceeds the ICC Rule 11.1 15° guideline "
+            f"(from {min_elbow:.1f}° to {max_elbow:.1f}° in the delivery window). "
+            f"Indicative only; not an official assessment. "
             f"Keep your arm locked and rotate from the shoulder."
+        )
+
+    if confidence == "low":
+        feedback += (
+            " Low measurement confidence — the delivery window was short or joints "
+            "were poorly tracked. Re-record with your full body visible."
         )
 
     coaching_tips = []
@@ -355,6 +423,7 @@ def evaluate_bowling_action(angle_sequence, is_right_handed=None, age_group="adu
         "score": score,
         "feedback": feedback,
         "is_good_shot": is_legal,
+        "confidence": confidence,
         "angle_scores": {
             "bowling_arm_extension": float(elbow_extension),
             "min_elbow_angle": min_elbow,

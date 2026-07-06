@@ -47,6 +47,61 @@ def test_bowling_detects_high_variance_arm():
     assert result["disclaimer"]  # indicative-screen disclaimer present
 
 
+def _delivery_frame(elbow_angle, elbow_y, wrist_y, is_world=True):
+    """Right-arm bowling frame with explicit arm geometry (screen y, down-positive)."""
+    return {
+        "left_elbow": 150, "right_elbow": elbow_angle,
+        "left_knee": 170, "right_knee": 170, "spine_tilt": 10.0,
+        "left_wrist_y": 0.8, "left_shoulder_y": 0.5, "left_elbow_y": 0.65,
+        "right_wrist_y": wrist_y, "right_shoulder_y": 0.5, "right_elbow_y": elbow_y,
+        "nose_y": 0.3, "shoulder_width": 0.25, "is_world": is_world,
+    }
+
+
+def _windowed_action(window_angles):
+    """Gather (wild elbow, arm down) → delivery window → follow-through."""
+    seq = []
+    # Gather: arm below shoulder, elbow angle flapping 90↔170. Must NOT count.
+    for i in range(10):
+        seq.append(_delivery_frame(90 + (i % 2) * 80, elbow_y=0.7, wrist_y=0.85))
+    # Delivery: elbow crosses above the shoulder, wrist rising to its peak.
+    n = len(window_angles)
+    for j, ang in enumerate(window_angles):
+        elbow_y = 0.45 - 0.02 * j          # above shoulder (0.5) from the start
+        wrist_y = 0.40 - 0.03 * j          # wrist above elbow, peaks at last frame
+        seq.append(_delivery_frame(ang, elbow_y=elbow_y, wrist_y=wrist_y))
+    # Follow-through: arm comes down, elbow angle wild again. Must NOT count.
+    for i in range(8):
+        seq.append(_delivery_frame(80 + (i % 2) * 90, elbow_y=0.7, wrist_y=0.75))
+    return seq, n
+
+
+def test_bowling_window_ignores_gather_and_followthrough():
+    # Arm locked (168-171°) through the delivery window, wild outside it.
+    seq, _ = _windowed_action([168, 169, 170, 171, 170, 169, 170, 171, 170, 169])
+    result = evaluate_bowling_action(seq, is_right_handed=True)
+    assert result["angle_scores"]["bowling_arm_extension"] < 5.0
+    assert result["is_good_shot"] is True
+    assert result["confidence"] == "normal"
+
+
+def test_bowling_window_detects_scripted_extension():
+    # 25° of extension scripted inside the window (145° → 170°).
+    seq, _ = _windowed_action([145 + 2.5 * j for j in range(11)])
+    result = evaluate_bowling_action(seq, is_right_handed=True)
+    ext = result["angle_scores"]["bowling_arm_extension"]
+    assert abs(ext - 25.0) <= 5.0
+    assert result["is_good_shot"] is False
+    assert "not an official assessment" in result["feedback"]
+
+
+def test_bowling_without_elbow_y_falls_back_low_confidence():
+    # Legacy payloads (no elbow_y) can't isolate the ICC window.
+    seq = [_bowling_frame(left_elbow=150, right_elbow=100 + (i % 2) * 70) for i in range(20)]
+    result = evaluate_bowling_action(seq)
+    assert result["confidence"] == "low"
+
+
 def test_bowling_leniency_applies_only_to_2d_angles():
     # Identical elbow swing, measured once from legacy 2D landmarks and once
     # from 3D world landmarks. The 20° foreshortening leniency must only be

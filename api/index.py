@@ -112,6 +112,9 @@ class ShotAnalysisResponse(BaseModel):
     tracking_quality: float = 100.0
     disclaimer: str = ""
     camera_angle_warning: str = ""
+    # "normal" | "low" — low when the bowling measurement window was too short
+    # or joints were poorly tracked. Empty for batting drills.
+    confidence: str = ""
 
 
 def _frame_to_dicts(frame: List[Landmark]) -> List[dict]:
@@ -174,6 +177,7 @@ async def analyze_shot_sequence(payload: ShotSequencePayload):
             tracking_quality=result.get("tracking_quality", 100.0),
             disclaimer=result.get("disclaimer", ""),
             camera_angle_warning=result.get("camera_angle_warning", ""),
+            confidence=result.get("confidence", ""),
         )
     except Exception:
         logger.exception("analyze_shot failed")
