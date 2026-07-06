@@ -20,8 +20,9 @@ import numpy as np
 
 # 1. DOWNLOAD DATASET FROM KAGGLE
 # (Run this in a Colab notebook cell)
-# Replace this string with your exact token from the Kaggle popup:
-os.environ['KAGGLE_API_TOKEN'] = "KGAT_7b075d6f0ded6431a851b02b6ecb9441"
+# Set your Kaggle token via Colab secrets (key icon in the left sidebar → add
+# "KAGGLE_API_TOKEN"), or export it in your environment. Never hardcode it here.
+os.environ['KAGGLE_API_TOKEN'] = os.environ.get("KAGGLE_API_TOKEN", "")
 
 !pip install kaggle
 !kaggle datasets download -d bigyansubedi/cricket-bowling-action-recognition
