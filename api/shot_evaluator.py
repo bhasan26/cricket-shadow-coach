@@ -20,9 +20,10 @@ from angle_utils import (
     smooth_sequence,
     resample_channel,
 )
-from dtw_utils import calculate_dtw_distance
+from dtw_utils import calculate_dtw_distance, tolerance_score
 from geo import (
     get_ideal_angle_sequence,
+    get_reference_tolerance,
     get_shot_name,
     get_angle_threshold,
     get_feedback_for_angle,
@@ -72,6 +73,16 @@ def tracking_quality(angle_sequence):
         1 for f in angle_sequence if all(f.get(k) is not None for k in DTW_KEYS)
     )
     return round(100.0 * full / len(angle_sequence), 1)
+
+
+def mirror_tolerance(tolerance):
+    """Swap left/right tolerance bands to match a mirrored ideal sequence."""
+    if not tolerance:
+        return tolerance
+    swapped = dict(tolerance)
+    for a, b in (("left_elbow", "right_elbow"), ("left_knee", "right_knee")):
+        swapped[a], swapped[b] = tolerance.get(b), tolerance.get(a)
+    return {k: v for k, v in swapped.items() if v is not None}
 
 
 def mirror_ideal(ideal_seq):
@@ -434,6 +445,82 @@ def evaluate_bowling_action(angle_sequence, is_right_handed=None, age_group="adu
     }
 
 
+def segment_phases(front_elbow_series):
+    """
+    Rule-based batting phase segmentation over a smoothed front-elbow angle
+    series: stance (still) → backswing (elbow flexing, angle decreasing) →
+    downswing/impact (extending to peak) → follow-through.
+
+    Returns {"backswing": (start, end), "impact": (start, end),
+    "follow_through": (start, end)} index ranges (inclusive), or None when the
+    series doesn't contain a recognizable swing shape.
+    """
+    n = len(front_elbow_series)
+    if n < 10:
+        return None
+    series = np.asarray(front_elbow_series, dtype=float)
+    velocity = np.abs(np.diff(series))
+
+    # Stance ends when the elbow starts genuinely moving.
+    moving = np.where(velocity > 1.0)[0]
+    stance_end = int(moving[0]) if len(moving) else 0
+
+    # Backswing bottoms out at maximum flexion; impact is peak extension after it.
+    search_from = min(stance_end, n - 2)
+    min_idx = search_from + int(np.argmin(series[search_from:]))
+    if min_idx >= n - 2:
+        return None
+    impact_idx = min_idx + int(np.argmax(series[min_idx:]))
+    if impact_idx <= min_idx or (series[impact_idx] - series[min_idx]) < 10:
+        return None  # no meaningful extension — not a swing
+
+    half_window = max(2, n // 16)
+    return {
+        "backswing": (stance_end, min_idx),
+        "impact": (max(0, impact_idx - half_window), min(n - 1, impact_idx + half_window)),
+        "follow_through": (impact_idx, n - 1),
+    }
+
+
+def score_phases(angle_sequence, ideal_seq, is_right_handed=True):
+    """
+    Per-phase scores against the matching segment of the reference, so feedback
+    can say WHICH part of the shot was off. Returns {} when either sequence has
+    no recognizable swing (whole-sequence DTW score still applies).
+    """
+    front_key = "left_elbow" if is_right_handed else "right_elbow"
+    user_front = resample_channel([f.get(front_key) for f in angle_sequence], RESAMPLE_LEN)
+    ideal_front = resample_channel([f.get(front_key, 0) for f in ideal_seq], RESAMPLE_LEN)
+
+    user_phases = segment_phases(user_front)
+    ideal_phases = segment_phases(ideal_front)
+    if not user_phases or not ideal_phases:
+        return {}
+
+    user_channels = {
+        k: resample_channel([f.get(k) for f in angle_sequence], RESAMPLE_LEN) for k in DTW_KEYS
+    }
+    ideal_channels = {
+        k: resample_channel([f.get(k, 0) for f in ideal_seq], RESAMPLE_LEN) for k in DTW_KEYS
+    }
+
+    phase_scores = {}
+    for phase in ("backswing", "impact", "follow_through"):
+        u0, u1 = user_phases[phase]
+        i0, i1 = ideal_phases[phase]
+        if u1 - u0 < 2 or i1 - i0 < 2:
+            continue
+        scores = []
+        for key in DTW_KEYS:
+            _, s = calculate_dtw_distance(
+                user_channels[key][u0: u1 + 1], ideal_channels[key][i0: i1 + 1]
+            )
+            scores.append(s)
+        if scores:
+            phase_scores[f"{phase}_phase"] = float(np.mean(scores))
+    return phase_scores
+
+
 def calculate_sequence_score(angle_sequence, shot_type="cover_drive", is_right_handed=True):
     """Calculate score for an entire shot sequence."""
     if not angle_sequence:
@@ -447,8 +534,10 @@ def calculate_sequence_score(angle_sequence, shot_type="cover_drive", is_right_h
 
     shot_name = get_shot_name(shot_type)
     ideal_seq = get_ideal_angle_sequence(shot_type)
+    tolerance = get_reference_tolerance(shot_type)
     if not is_right_handed:
         ideal_seq = mirror_ideal(ideal_seq)
+        tolerance = mirror_tolerance(tolerance)
 
     quality = tracking_quality(angle_sequence)
 
@@ -471,16 +560,26 @@ def calculate_sequence_score(angle_sequence, shot_type="cover_drive", is_right_h
             "tracking_quality": quality,
         }
 
-    # ── DTW COMPARISON (resampled + length-normalized) ─────────────
+    # ── REFERENCE COMPARISON (resampled + length-normalized) ───────
+    # With a recorded reference, each channel is scored against per-frame
+    # tolerance bands (1 std = full marks → 0 at 3 std). Hardcoded fallback
+    # references have no bands, so plain length-normalized DTW applies.
     angle_scores = {}
     total_score = 0.0
     for key in DTW_KEYS:
         user_resampled = resample_channel([f.get(key) for f in angle_sequence], RESAMPLE_LEN)
-        ideal_resampled = resample_channel([f.get(key, 0) for f in ideal_seq], RESAMPLE_LEN)
-        _, score = calculate_dtw_distance(user_resampled, ideal_resampled)
+        if tolerance and tolerance.get(key):
+            ref_mean = [f.get(key, 0) for f in ideal_seq]
+            score = tolerance_score(user_resampled, ref_mean, tolerance[key])
+        else:
+            ideal_resampled = resample_channel([f.get(key, 0) for f in ideal_seq], RESAMPLE_LEN)
+            _, score = calculate_dtw_distance(user_resampled, ideal_resampled)
         angle_scores[key] = score
         total_score += score
     raw_score = total_score / len(DTW_KEYS)
+
+    # ── PHASE-AWARE SCORES (which part of the shot was off) ────────
+    angle_scores.update(score_phases(angle_sequence, ideal_seq, is_right_handed))
 
     # ── BLEND RAW SCORE WITH MOTION QUALITY ────────────────────────
     stance_score = 100 if is_standing else 30

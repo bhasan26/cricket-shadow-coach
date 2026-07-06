@@ -240,7 +240,7 @@ function Feedback({ score, message, shotName = '', analysisResult = null, histor
                 color: scorePercentage >= 80 ? '#00f5a0' : '#ff3366', letterSpacing: '1.2px', textTransform: 'uppercase',
                 boxShadow: scorePercentage >= 80 ? '0 0 15px rgba(0,245,160,0.08)' : '0 0 15px rgba(255,51,102,0.08)'
               }}>
-                {scorePercentage >= 80 ? '✓ ICC COMPLIANT ACTION' : '✗ NON-COMPLIANT (ILLEGAL)'}
+                {scorePercentage >= 80 ? '✓ WITHIN 15° GUIDELINE (INDICATIVE)' : '✗ EXCEEDS 15° GUIDELINE (INDICATIVE)'}
               </div>
             </div>
           ) : (

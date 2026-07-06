@@ -1,0 +1,6 @@
+# Development-only dependencies for the reference-capture tooling
+# (api/tools/). NOT needed in production — keep out of requirements.txt.
+-r requirements.txt
+mediapipe
+opencv-python
+pytest

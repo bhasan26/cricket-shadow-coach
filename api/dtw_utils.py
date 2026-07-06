@@ -58,6 +58,38 @@ def dtw_score(distance, path, k=DTW_SCORE_K):
     return float(max(0.0, 100.0 - per_step * k))
 
 
+def tolerance_score(user_sequence, ref_mean, ref_std):
+    """
+    Score a user angle series against a recorded reference with per-frame
+    tolerance bands (from api/tools/build_reference.py).
+
+    The user series is DTW-aligned to the reference mean; each matched step is
+    scored by its deviation in units of that frame's std-dev: within 1 std =
+    full marks, scaling linearly to 0 at 3 std. Returns 0-100.
+    """
+    if not user_sequence or not ref_mean or len(ref_mean) != len(ref_std):
+        return 0.0
+    user_array = np.array(user_sequence, dtype=np.float32).reshape(-1, 1)
+    ref_array = np.array(ref_mean, dtype=np.float32).reshape(-1, 1)
+    try:
+        _, path = fastdtw(user_array, ref_array, dist=euclidean)
+    except Exception as e:
+        print(f"DTW calculation error: {e}")
+        return 0.0
+    if not path:
+        return 0.0
+
+    total = 0.0
+    for i, j in path:
+        std = max(float(ref_std[j]), 1e-6)
+        z = abs(float(user_sequence[i]) - float(ref_mean[j])) / std
+        if z <= 1.0:
+            total += 1.0
+        elif z < 3.0:
+            total += (3.0 - z) / 2.0
+    return float(100.0 * total / len(path))
+
+
 def calculate_angle_deviation(user_value, ideal_value, tolerance=5.0):
     """
     Calculate absolute deviation between user and ideal angle at a point.

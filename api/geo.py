@@ -1,10 +1,20 @@
 """
 Ideal model definitions for cricket batting shots.
 
-This module contains hardcoded reference data for biomechanically optimal
-cricket shots. These serve as the comparison baseline for evaluating
-user performance.
+Reference data comes from two sources, in priority order:
+ 1. Recorded references (api/references/<shot_type>/reference.json) — real
+    takes captured with api/tools/, averaged with per-frame tolerance bands.
+ 2. The hardcoded sequences below — estimates, used as fallback until real
+    references are recorded (see api/references/README.md).
 """
+
+import json
+import logging
+import os
+
+logger = logging.getLogger("cricket-coach.geo")
+
+REFERENCES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "references")
 
 # ─── COVER DRIVE ─────────────────────────────────────────────────────────
 IDEAL_COVER_DRIVE = [
@@ -409,6 +419,55 @@ POSITION_FEEDBACK = {
 }
 
 
+# ─── RECORDED REFERENCES ─────────────────────────────────────────────────
+# shot_type -> {"sequence": [frame dicts], "tolerance": {key: [std per frame]}}
+RECORDED_REFERENCES = {}
+
+
+def _load_recorded_references():
+    loaded = {}
+    for shot_type in SHOT_MODELS:
+        if shot_type == "bowling_action":
+            continue  # bowling is rule-based, not template-based
+        path = os.path.join(REFERENCES_DIR, shot_type, "reference.json")
+        if not os.path.exists(path):
+            logger.warning(
+                "No recorded reference for %s — falling back to hardcoded ideal "
+                "sequence (see api/references/README.md)", shot_type
+            )
+            continue
+        try:
+            with open(path) as fh:
+                ref = json.load(fh)
+            channels = {k: v for k, v in ref.get("channels", {}).items() if v}
+            n_frames = ref.get("frames", 0)
+            if not channels or n_frames < 2:
+                raise ValueError("empty or malformed reference")
+            sequence = [
+                {key: ch["mean"][i] for key, ch in channels.items()}
+                for i in range(n_frames)
+            ]
+            loaded[shot_type] = {
+                "sequence": sequence,
+                "tolerance": {key: ch["std"] for key, ch in channels.items()},
+            }
+            logger.info("Loaded recorded reference for %s (%d takes)",
+                        shot_type, ref.get("num_takes", 0))
+        except (OSError, ValueError, KeyError, IndexError, json.JSONDecodeError):
+            logger.exception("Could not load reference for %s — using hardcoded fallback", shot_type)
+    return loaded
+
+
+RECORDED_REFERENCES = _load_recorded_references()
+
+
+def get_reference_tolerance(shot_type="cover_drive"):
+    """Per-frame std-dev tolerance bands ({angle_key: [std, ...]}), or None
+    when only the hardcoded fallback sequence exists for this shot type."""
+    ref = RECORDED_REFERENCES.get(shot_type)
+    return ref["tolerance"] if ref else None
+
+
 def get_shot_list():
     """Get list of available shots with metadata."""
     return {
@@ -430,8 +489,12 @@ def get_ideal_angle_sequence(shot_type="cover_drive"):
         shot_type: Key from SHOT_MODELS (default: cover_drive)
     
     Returns:
-        List: List of angle measurements at each frame
+        List: List of angle measurements at each frame. Recorded references
+        (api/references/) take priority over the hardcoded fallbacks.
     """
+    ref = RECORDED_REFERENCES.get(shot_type)
+    if ref:
+        return ref["sequence"]
     model = SHOT_MODELS.get(shot_type, SHOT_MODELS["cover_drive"])
     return model["sequence"]
 
