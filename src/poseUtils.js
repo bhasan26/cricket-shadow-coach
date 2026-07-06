@@ -6,7 +6,6 @@
  */
 
 let poseInstance = null;
-let isLoading = false;
 let loadPromise = null;
 
 /**
@@ -102,7 +101,7 @@ export function createPoseDetector(videoElement, onPoseLandmarks) {
     if (initialized && pose && videoElement.readyState >= 2) {
       try {
         await pose.send({ image: videoElement });
-      } catch (err) {
+      } catch {
         // Silently handle frame processing errors
       }
     }

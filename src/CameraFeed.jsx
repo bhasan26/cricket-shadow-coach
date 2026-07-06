@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { createPoseDetector } from './poseUtils';
 import { drawSkeleton, calculateAngleJS, calculateSpineTiltJS } from './drawSkeleton';
@@ -16,6 +16,14 @@ import {
 // Stability checking configuration
 const STABILITY_BUFFER_SIZE = 15;
 const STABILITY_THRESHOLD = 2.0;
+
+// Population variance of a numeric array (pure helper — module scope so it doesn't
+// become a dependency of the pose callback).
+const calculateVariance = (values) => {
+  if (values.length === 0) return 0;
+  const mean = values.reduce((s, v) => s + v, 0) / values.length;
+  return values.reduce((s, v) => s + Math.pow(v - mean, 2), 0) / values.length;
+};
 
 // Nano Banana Bot custom AI-generated icon assets mapper
 const NANO_ICONS = {
@@ -35,6 +43,20 @@ function CameraFeed() {
   const frameBufferRef = useRef([]);
   const isRecordingRef = useRef(false);
 
+  // Mirror rapidly-read UI state into refs so the per-frame pose callback can stay
+  // referentially stable and NOT force the MediaPipe detector to be recreated.
+  const autoRecordEnabledRef = useRef(false);
+  const ghostEnabledRef = useRef(true);
+  const selectedShotRef = useRef('cover_drive');
+  const isAnalyzingRef = useRef(false);
+  const handleStartRef = useRef(() => {});
+  const handleStopRef = useRef(() => {});
+  const handlePoseLandmarksRef = useRef(() => {});
+
+  // Per-frame counters + throttle guard for React state updates.
+  const frameCountRef = useRef(0);
+  const lastUiUpdateRef = useRef(0);
+
   const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
   // Core recording state
@@ -42,8 +64,6 @@ function CameraFeed() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [currentScore, setCurrentScore] = useState(0);
   const [currentFeedback, setCurrentFeedback] = useState('');
-  const [frameCount, setFrameCount] = useState(0);
-  const [bufferedFrameCount, setBufferedFrameCount] = useState(0);
   const [cameraReady, setCameraReady] = useState(false);
   const [poseReady, setPoseReady] = useState(false);
   const [apiReady, setApiReady] = useState(false);
@@ -65,7 +85,7 @@ function CameraFeed() {
   const [history, setHistory] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem('shadow_drills_history') || '[]');
-    } catch (e) {
+    } catch {
       return [];
     }
   });
@@ -76,21 +96,29 @@ function CameraFeed() {
   // Rear camera by default — users prop the phone up and stand back for a full-body shot.
   const [facingMode, setFacingMode] = useState('environment');
 
-  // Live client-side telemetry state
-  const [liveLeftElbow, setLiveLeftElbow] = useState(0);
-  const [liveRightElbow, setLiveRightElbow] = useState(0);
-  const [liveLeftKnee, setLiveLeftKnee] = useState(0);
-  const [liveRightKnee, setLiveRightKnee] = useState(0);
-  const [liveSpineTilt, setLiveSpineTilt] = useState(0);
+  // Live client-side telemetry — batched into one object and updated at most every
+  // ~100ms (see lastUiUpdateRef) so 30–60fps pose frames don't thrash React.
+  const [telemetry, setTelemetry] = useState({
+    le: 0, re: 0, lk: 0, rk: 0, st: 0, frameCount: 0, bufferedFrameCount: 0,
+  });
+  const { le: liveLeftElbow, re: liveRightElbow, lk: liveLeftKnee, rk: liveRightKnee, st: liveSpineTilt } = telemetry;
+  const frameCount = telemetry.frameCount;
+  const bufferedFrameCount = telemetry.bufferedFrameCount;
 
   // Hands-free state machine refs & variables
   const anglesBufferRef = useRef([]);
   const autoRecordStateRef = useRef('IDLE'); // 'IDLE', 'STABILIZING', 'COUNTDOWN', 'RECORDING', 'COOLDOWN'
   const countdownValueRef = useRef(3);
-  const lastStateChangeRef = useRef(Date.now());
+  const lastStateChangeRef = useRef(0);
   const recordingStartTimeRef = useRef(0);
   const [hudStateLabel, setHudStateLabel] = useState('STAND IN STANCE');
   const [mobileTab, setMobileTab] = useState('choose-shot'); // 'choose-shot', 'camera', 'results'
+
+  // Keep refs in sync with state so the stable per-frame callback reads fresh values.
+  useEffect(() => { autoRecordEnabledRef.current = autoRecordEnabled; }, [autoRecordEnabled]);
+  useEffect(() => { ghostEnabledRef.current = ghostEnabled; }, [ghostEnabled]);
+  useEffect(() => { selectedShotRef.current = selectedShot; }, [selectedShot]);
+  useEffect(() => { isAnalyzingRef.current = isAnalyzing; }, [isAnalyzing]);
 
   // Trigger vocal prompts on drill change
   useEffect(() => {
@@ -118,7 +146,7 @@ function CameraFeed() {
   const handleStart = useCallback(() => {
     unlockMobileAudio();
     frameBufferRef.current = [];
-    setBufferedFrameCount(0);
+    setTelemetry(t => ({ ...t, bufferedFrameCount: 0 }));
     setAnalysisResult(null);
     setIsRecording(true);
     isRecordingRef.current = true;
@@ -187,44 +215,54 @@ function CameraFeed() {
       };
       
       setHistory(prev => {
-        const updated = [newHistoryItem, ...prev];
-        localStorage.setItem('shadow_drills_history', JSON.stringify(updated));
+        // Cap history so localStorage can't grow without bound.
+        const updated = [newHistoryItem, ...prev].slice(0, 200);
+        try {
+          localStorage.setItem('shadow_drills_history', JSON.stringify(updated));
+        } catch (e) {
+          // Quota errors (e.g. iOS private mode) shouldn't break the session.
+          console.warn('Could not persist drill history:', e);
+        }
         return updated;
       });
 
-    } catch (error) {
+    } catch {
       speakCoachingCue(`Analysis failed.`, true);
       setCurrentFeedback('❌ Analysis failed. Ensure backend API service is running locally.');
     } finally {
       setIsAnalyzing(false);
       frameBufferRef.current = [];
-      setBufferedFrameCount(0);
+      setTelemetry(t => ({ ...t, bufferedFrameCount: 0 }));
     }
   }, [selectedShot, availableShots]);
 
+  // Stable per-frame callback. Reads volatile UI state through refs so its identity
+  // never changes — this is what keeps the MediaPipe detector effect from tearing
+  // down and rebuilding the detector on every analysis / selection change.
   const handlePoseLandmarks = useCallback((landmarks) => {
     if (!landmarks) return;
-    setFrameCount(prev => prev + 1);
-    
+
+    const autoRecordEnabled = autoRecordEnabledRef.current;
+    const isAnalyzing = isAnalyzingRef.current;
+    const ghostEnabled = ghostEnabledRef.current;
+    const selectedShot = selectedShotRef.current;
+
+    frameCountRef.current += 1;
+
     const le = calculateAngleJS(landmarks[11], landmarks[13], landmarks[15]);
     const re = calculateAngleJS(landmarks[12], landmarks[14], landmarks[16]);
     const lk = calculateAngleJS(landmarks[23], landmarks[25], landmarks[27]);
     const rk = calculateAngleJS(landmarks[24], landmarks[26], landmarks[28]);
     const st = calculateSpineTiltJS(landmarks);
 
-    setLiveLeftElbow(le);
-    setLiveRightElbow(re);
-    setLiveLeftKnee(lk);
-    setLiveRightKnee(rk);
-    setLiveSpineTilt(st);
-
+    // Canvas drawing runs every frame (no React involved).
     const canvas = canvasRef.current;
     if (canvas) {
       const ctx = canvas.getContext('2d');
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       const trails = frameBufferRef.current.slice(-18).map(f => f.landmarks);
       drawSkeleton(ctx, landmarks, ghostEnabled ? selectedShot : null, trails);
-      
+
       for (const idx of [11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28]) {
         const lm = landmarks[idx];
         if (lm && (lm.visibility === undefined || lm.visibility > 0.45)) {
@@ -246,7 +284,18 @@ function CameraFeed() {
         landmarks: landmarks.map(lm => ({ x: lm.x, y: lm.y, z: lm.z, visibility: lm.visibility || 1.0 })),
         timestamp: Date.now(),
       });
-      setBufferedFrameCount(frameBufferRef.current.length);
+    }
+
+    // Throttle React state updates: telemetry gauges + counters refresh at most
+    // every 100ms regardless of the 30–60fps pose stream.
+    const now = Date.now();
+    if (now - lastUiUpdateRef.current >= 100) {
+      lastUiUpdateRef.current = now;
+      setTelemetry({
+        le, re, lk, rk, st,
+        frameCount: frameCountRef.current,
+        bufferedFrameCount: frameBufferRef.current.length,
+      });
     }
 
     if (autoRecordEnabled && !isAnalyzing) {
@@ -265,7 +314,6 @@ function CameraFeed() {
         const avgVariance = (leVar + reVar + lkVar + rkVar + stVar) / 5;
 
         const currentState = autoRecordStateRef.current;
-        const now = Date.now();
 
         if (currentState === 'IDLE') {
           const isStandingStance = lk > 115 && lk < 170 && rk > 115 && rk < 170 && st < 30;
@@ -315,7 +363,7 @@ function CameraFeed() {
               countdownValueRef.current = 0;
               setHudStateLabel('PLAY SHOT NOW!');
               playCountdownStep(0);
-              handleStart();
+              handleStartRef.current();
               autoRecordStateRef.current = 'RECORDING';
               lastStateChangeRef.current = now;
             }
@@ -335,19 +383,20 @@ function CameraFeed() {
         
         else if (currentState === 'COOLDOWN') {
           if (now - lastStateChangeRef.current > 700) {
-            handleStop();
+            handleStopRef.current();
           }
         }
       }
     }
 
-  }, [autoRecordEnabled, ghostEnabled, selectedShot, isAnalyzing, handleStart, handleStop, availableShots, history]);
+  }, []);
 
-  const calculateVariance = (values) => {
-    if (values.length === 0) return 0;
-    const mean = values.reduce((s, v) => s + v, 0) / values.length;
-    return values.reduce((s, v) => s + Math.pow(v - mean, 2), 0) / values.length;
-  };
+  // Keep the mutable refs pointed at the latest callbacks after each render.
+  useEffect(() => {
+    handleStartRef.current = handleStart;
+    handleStopRef.current = handleStop;
+    handlePoseLandmarksRef.current = handlePoseLandmarks;
+  });
 
   useEffect(() => {
     let mounted = true;
@@ -368,7 +417,7 @@ function CameraFeed() {
           videoRef.current.srcObject = stream;
           videoRef.current.onloadedmetadata = () => setCameraReady(true);
         }
-      } catch (error) {
+      } catch {
         setCurrentFeedback('📷 Camera access denied. Please allow camera permissions in your browser to begin analysis.');
       }
     };
@@ -383,16 +432,20 @@ function CameraFeed() {
     const syncSize = () => { if (canvas && video.videoWidth) { canvas.width = video.videoWidth; canvas.height = video.videoHeight; } };
     syncSize();
     video.addEventListener('resize', syncSize);
-    const detector = createPoseDetector(video, handlePoseLandmarks);
+    // Pass a stable wrapper that dispatches to the latest callback via ref, so the
+    // detector is created exactly once per camera session (not per state change).
+    const detector = createPoseDetector(video, (lm) => handlePoseLandmarksRef.current(lm));
     poseDetectorRef.current = detector;
     detector.start().then(() => {
       setPoseReady(true);
-      if (!currentFeedback || currentFeedback.includes('Ready')) {
-        setCurrentFeedback('Ready! Calibrate your feet and align into the ghost overlay.');
-      }
+      setCurrentFeedback(prev =>
+        (!prev || prev.includes('Ready'))
+          ? 'Ready! Calibrate your feet and align into the ghost overlay.'
+          : prev
+      );
     });
     return () => { video.removeEventListener('resize', syncSize); detector.destroy(); };
-  }, [cameraReady, handlePoseLandmarks]);
+  }, [cameraReady]);
 
   const getGaugeColor = (type, val) => {
     if (type.includes('elbow')) {
@@ -867,12 +920,10 @@ function CameraFeed() {
 
           {/* Symmetrical Feedback diagnostics panel */}
           <div className="cyber-card" style={{ padding: '24px', marginBottom: '16px' }}>
-            <Feedback 
-              score={currentScore} 
-              message={currentFeedback} 
-              frameCount={frameCount} 
-              bufferedFrames={bufferedFrameCount} 
-              shotName={lastShotName} 
+            <Feedback
+              score={currentScore}
+              message={currentFeedback}
+              shotName={lastShotName}
               analysisResult={analysisResult}
               history={history}
             />

@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 
-function Feedback({ score, message, frameCount = 0, bufferedFrames = 0, shotName = '', analysisResult = null, history = [] }) {
+function Feedback({ score, message, shotName = '', analysisResult = null, history = [] }) {
   const [showHistory, setShowHistory] = useState(false);
   const scorePercentage = Math.min(100, Math.max(0, score || 0));
 

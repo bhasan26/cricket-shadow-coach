@@ -60,7 +60,7 @@ export function playSynthBeep(frequency, duration = 0.15, type = 'sine') {
     
     osc.start();
     osc.stop(ctx.currentTime + duration);
-  } catch (err) {
+  } catch {
     // Audio context may be blocked by browser user gesture policies
   }
 }
@@ -102,7 +102,7 @@ export function unlockMobileAudio() {
     // High sub-audible oscillator chime to unlock AudioContext
     playSynthBeep(22000, 0.01);
     console.log('Mobile web audio and voice pipelines successfully authorized.');
-  } catch (e) {
+  } catch {
     // Silently ignore unlock errors
   }
 }

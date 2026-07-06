@@ -1,7 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet-async';
 import Footer from './components/Footer';
 import './LandingPage.css';
+
+// SVG Arrow for buttons — module scope so it isn't recreated on every render.
+const ArrowRight = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="square" strokeLinejoin="miter">
+    <path d="M5 12h14M12 5l7 7-7 7" />
+  </svg>
+);
 
 function LandingPage({ onStartAnalysis, onNavigate }) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -55,13 +62,6 @@ function LandingPage({ onStartAnalysis, onNavigate }) {
   }, []);
 
   const close = () => setMenuOpen(false);
-
-  // SVG Arrow for buttons
-  const ArrowRight = () => (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="square" strokeLinejoin="miter">
-      <path d="M5 12h14M12 5l7 7-7 7" />
-    </svg>
-  );
 
   return (
     <div className="courto-landing">

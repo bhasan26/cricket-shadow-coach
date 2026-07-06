@@ -1,4 +1,3 @@
-import React from 'react';
 
 function Controls({ onStart, onStop, isRecording, isAnalyzing }) {
   const btnBase = {

@@ -1,4 +1,4 @@
-import React, { useState, Suspense, lazy } from 'react';
+import { useState, Suspense, lazy } from 'react';
 import LandingPage from './LandingPage';
 import './App.css';
 
@@ -24,6 +24,21 @@ const LoadingFallback = () => (
     Loading AI Modules...
   </div>
 );
+
+// Single nav button — hover styling lives in App.css (.app-nav-btn:hover) so it
+// survives the cursor entering child <svg>/<span> nodes, unlike JS onMouseEnter.
+function NavButton({ icon, label, active, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`app-nav-btn ${active ? 'active' : ''}`}
+    >
+      {icon}
+      <span className="nav-label">{label}</span>
+    </button>
+  );
+}
 
 function App() {
   const [activeTab, setActiveTab] = useState('home');
@@ -112,76 +127,25 @@ function App() {
         </div>
         
         <div className="top-nav-wrapper">
-          <div className="top-nav-buttons" style={{
-            display: 'flex',
-            gap: '10px',
-            background: 'rgba(0, 0, 0, 0.4)',
-            padding: '4px',
-            borderRadius: '12px',
-            border: '1px solid rgba(255, 255, 255, 0.05)'
-          }}>
-            <button 
+          <div className="top-nav-buttons">
+            <NavButton
+              active={false}
               onClick={() => setActiveTab('home')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '10px 20px',
-                background: 'transparent',
-                border: 'none',
-                borderRadius: '8px',
-                color: '#94a3b8',
-                fontWeight: 800,
-                fontSize: '0.9rem',
-                cursor: 'pointer',
-                transition: 'all 0.2s'
-              }}
-              onMouseEnter={(e) => e.target.style.color = '#ffffff'}
-              onMouseLeave={(e) => e.target.style.color = '#94a3b8'}
-            >
-              <svg className="nav-icon" width="18" height="18" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" /></svg>
-              <span className="nav-label">HOME</span>
-            </button>
-            <button 
+              label="HOME"
+              icon={<svg className="nav-icon" width="18" height="18" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" /></svg>}
+            />
+            <NavButton
+              active={activeTab === 'live'}
               onClick={() => setActiveTab('live')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '10px 20px',
-                background: activeTab === 'live' ? 'rgba(0, 245, 160, 0.15)' : 'transparent',
-                border: 'none',
-                borderRadius: '8px',
-                color: activeTab === 'live' ? '#00f5a0' : '#94a3b8',
-                fontWeight: 800,
-                fontSize: '0.9rem',
-                cursor: 'pointer',
-                transition: 'all 0.2s'
-              }}
-            >
-              <svg className="nav-icon" width="18" height="18" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18 9 11.25l4.306 4.306a11.95 11.95 0 0 1 5.814-5.518l2.74-1.22m0 0-5.94-2.281m5.94 2.28-2.28 5.941" /></svg>
-              <span className="nav-label">LIVE TELEMETRY</span>
-            </button>
-            <button 
+              label="LIVE TELEMETRY"
+              icon={<svg className="nav-icon" width="18" height="18" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18 9 11.25l4.306 4.306a11.95 11.95 0 0 1 5.814-5.518l2.74-1.22m0 0-5.94-2.281m5.94 2.28-2.28 5.941" /></svg>}
+            />
+            <NavButton
+              active={activeTab === 'dashboard'}
               onClick={() => setActiveTab('dashboard')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '10px 20px',
-                background: activeTab === 'dashboard' ? 'rgba(0, 245, 160, 0.15)' : 'transparent',
-                border: 'none',
-                borderRadius: '8px',
-                color: activeTab === 'dashboard' ? '#00f5a0' : '#94a3b8',
-                fontWeight: 800,
-                fontSize: '0.9rem',
-                cursor: 'pointer',
-                transition: 'all 0.2s'
-              }}
-            >
-              <svg className="nav-icon" width="18" height="18" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z" /></svg>
-              <span className="nav-label">VIDEO DASHBOARD</span>
-            </button>
+              label="VIDEO DASHBOARD"
+              icon={<svg className="nav-icon" width="18" height="18" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z" /></svg>}
+            />
           </div>
         </div>
       </nav>
@@ -206,7 +170,7 @@ function App() {
           backgroundPosition: 'center 43%',
           backgroundRepeat: 'no-repeat',
           opacity: 0.18,
-          filter: 'blue-shift contrast(1.25) brightness(0.75)',
+          filter: 'hue-rotate(180deg) contrast(1.25) brightness(0.75)',
         }} />
         
         {/* Shading gradient */}
@@ -297,9 +261,9 @@ function App() {
         </div>
         
         <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', justifyContent: 'center', marginTop: '4px' }}>
-          <a href="#privacy" style={{ color: '#cbd5e1', textDecoration: 'none', transition: 'color 0.2s' }}>Privacy Policy</a>
+          <button type="button" className="footer-link-btn" onClick={() => setActiveTab('privacy')}>Privacy Policy</button>
           <span style={{ color: '#475569' }}>|</span>
-          <a href="#contact" style={{ color: '#cbd5e1', textDecoration: 'none', transition: 'color 0.2s' }}>Contact & Feedback</a>
+          <button type="button" className="footer-link-btn" onClick={() => setActiveTab('contact')}>Contact & Feedback</button>
           <span style={{ color: '#475569' }}>|</span>
           <span style={{ color: '#64748b' }}>App Version 1.1.0</span>
         </div>

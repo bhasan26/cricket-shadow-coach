@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 
 export default function LegalNav({ onNavigate }) {
   const [scrolled, setScrolled] = useState(false);

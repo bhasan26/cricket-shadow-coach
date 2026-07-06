@@ -280,7 +280,6 @@ export function drawSkeleton(ctx, poseLandmarks, ghostType = null, trails = []) 
 
   // 1. Draw Footprint Blueprints at the bottom of the canvas
   if (ghostType) {
-    const isRightDrill = ghostType !== 'pull_shot'; // Pull has open stance
     const targetLeftFoot = { x: 0.58 * width, y: 0.94 * height };
     const targetRightFoot = { x: 0.42 * width, y: 0.92 * height };
     

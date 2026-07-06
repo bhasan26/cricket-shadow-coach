@@ -6,6 +6,55 @@
   gap: 32px;
 }
 
+/* Top navigation buttons (moved off inline styles so :hover works reliably) */
+.top-nav-buttons {
+  display: flex;
+  gap: 10px;
+  background: rgba(0, 0, 0, 0.4);
+  padding: 4px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.app-nav-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  color: #94a3b8;
+  font-weight: 800;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.app-nav-btn:hover {
+  color: #ffffff;
+}
+
+.app-nav-btn.active {
+  background: rgba(0, 245, 160, 0.15);
+  color: #00f5a0;
+}
+
+/* Footer text links rendered as buttons for real navigation */
+.footer-link-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+  color: #cbd5e1;
+  transition: color 0.2s;
+}
+
+.footer-link-btn:hover {
+  color: #00f5a0;
+}
+
 .main-journey-grid {
   display: grid;
   grid-template-columns: 65% calc(35% - 32px);
