@@ -2,7 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { HelmetProvider } from 'react-helmet-async'
 import { BrowserRouter } from 'react-router-dom'
-import { ThemeProvider } from './ThemeContext'
+import { ThemeProvider } from './contexts/ThemeProvider'
 import './index.css'
 import App from './App.jsx'
 

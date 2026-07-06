@@ -2,16 +2,19 @@ import { useState, useEffect } from 'react';
 
 export default function InstallButton() {
   const [installPrompt, setInstallPrompt] = useState(null);
-  const [isVisible, setIsVisible] = useState(false);
-  const [isIOS, setIsIOS] = useState(false);
+  const [isVisible, setIsVisible] = useState(() => {
+    // Check if already installed on mount
+    const isStandalone =
+      window.matchMedia('(display-mode: standalone)').matches ||
+      window.navigator.standalone === true;
+    return !isStandalone;
+  });
+  const [isIOS] = useState(() =>
+    /iPad|iPhone|iPod/.test(navigator.userAgent) &&
+    !window.MSStream
+  );
 
   useEffect(() => {
-    // Detect iOS
-    const iosDetected =
-      /iPad|iPhone|iPod/.test(navigator.userAgent) &&
-      !window.MSStream;
-    setIsIOS(iosDetected);
-
     // Listen for the beforeinstallprompt event (Android/Chrome/Edge)
     const handleBeforeInstall = (e) => {
       e.preventDefault();
@@ -20,14 +23,6 @@ export default function InstallButton() {
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstall);
-
-    // Also show button if app is not already installed
-    if (
-      window.matchMedia('(display-mode: standalone)').matches ||
-      window.navigator.standalone === true
-    ) {
-      setIsVisible(false); // Don't show install button if already installed
-    }
 
     return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
   }, []);
