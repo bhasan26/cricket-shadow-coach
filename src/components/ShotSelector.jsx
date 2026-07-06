@@ -1,6 +1,6 @@
 import { unlockMobileAudio } from '../audioCoaching';
 
-// Nano Banana Bot custom AI-generated icon assets mapper
+// Icon assets mapper
 const NANO_ICONS = {
   cover_drive: '/cover-drive-nano.png',
   straight_drive: '/straight-drive-nano.png',
