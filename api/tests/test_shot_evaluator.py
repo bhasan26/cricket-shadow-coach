@@ -47,6 +47,24 @@ def test_bowling_detects_high_variance_arm():
     assert result["disclaimer"]  # indicative-screen disclaimer present
 
 
+def test_bowling_leniency_applies_only_to_2d_angles():
+    # Identical elbow swing, measured once from legacy 2D landmarks and once
+    # from 3D world landmarks. The 20° foreshortening leniency must only be
+    # subtracted in the 2D case.
+    def seq(is_world):
+        frames = []
+        for i in range(20):
+            f = _bowling_frame(left_elbow=150, right_elbow=130 + (i % 2) * 40)
+            f["is_world"] = is_world
+            frames.append(f)
+        return frames
+
+    ext_2d = evaluate_bowling_action(seq(False))["angle_scores"]["bowling_arm_extension"]
+    ext_3d = evaluate_bowling_action(seq(True))["angle_scores"]["bowling_arm_extension"]
+    assert ext_3d > ext_2d
+    assert abs(ext_3d - ext_2d - 20.0) < 1e-6
+
+
 def test_bowling_delivery_phase_filtering_uses_raised_arm():
     # Only frames with the wrist above the shoulder should drive the extension read.
     seq = []

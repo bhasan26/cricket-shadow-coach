@@ -193,6 +193,9 @@ def extract_shot_angles(landmarks, world_landmarks=None):
         "right_wrist_y": right_wrist_y,
         "right_shoulder_y": right_shoulder_y,
         "nose_y": nose_y,
+        # True when joint angles came from metric 3D world landmarks. Downstream
+        # checks use this to skip 2D-foreshortening compensation.
+        "is_world": bool(coords),
     }
 
 
@@ -206,25 +209,39 @@ def channel_values(angle_sequence, key):
     return out
 
 
-def smooth_sequence(values, window=5):
+def smooth_sequence(values, window=7, polyorder=2):
     """
-    Moving-average smoother over a 1D list (MediaPipe jitter is a few degrees).
-    ``None`` entries are ignored; the output has the same length as the input,
-    with each position replaced by the mean of the surrounding valid window.
+    Savitzky-Golay smoother over a 1D angle series (MediaPipe jitter is a few
+    degrees frame-to-frame). Sav-Gol fits a local polynomial, so unlike a moving
+    average it suppresses noise without flattening the genuine peaks that the
+    motion score and bowling-extension checks depend on.
+
+    ``None`` entries (untracked joints) stay ``None``; smoothing runs over the
+    valid samples only. Falls back to a moving average when there are too few
+    valid points for the filter window.
     """
     n = len(values)
     if n == 0:
         return []
-    half = window // 2
-    out = []
-    for i in range(n):
-        lo = max(0, i - half)
-        hi = min(n, i + half + 1)
-        win = [v for v in values[lo:hi] if v is not None]
-        if win:
-            out.append(float(np.mean(win)))
-        else:
-            out.append(values[i])
+
+    valid_idx = [i for i, v in enumerate(values) if v is not None]
+    valid = [float(values[i]) for i in valid_idx]
+
+    if len(valid) >= window:
+        from scipy.signal import savgol_filter
+
+        smoothed = savgol_filter(valid, window_length=window, polyorder=polyorder)
+    else:
+        # Too short for Sav-Gol — centered moving average as a fallback.
+        half = max(1, len(valid) // 2)
+        smoothed = [
+            float(np.mean(valid[max(0, i - half): i + half + 1]))
+            for i in range(len(valid))
+        ]
+
+    out = list(values)
+    for pos, v in zip(valid_idx, smoothed):
+        out[pos] = float(v)
     return out
 
 

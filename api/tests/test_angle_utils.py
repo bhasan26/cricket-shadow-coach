@@ -50,10 +50,32 @@ def test_extract_shot_angles_uses_world_landmarks():
     assert math.isclose(angles["left_elbow"], 90.0, abs_tol=1e-3)
 
 
-def test_smooth_sequence_handles_none_and_length():
-    out = smooth_sequence([10, None, 10, 10, 10], window=3)
+def test_smooth_sequence_preserves_none_and_length():
+    # None means "joint untracked" — smoothing must not invent a value there.
+    out = smooth_sequence([10, None, 10, 10, 10])
     assert len(out) == 5
-    assert all(o is not None for o in out)
+    assert out[1] is None
+    assert all(o is not None for i, o in enumerate(out) if i != 1)
+
+
+def test_smooth_sequence_savgol_reduces_jitter_keeps_peak():
+    import numpy as np
+
+    rng = np.random.default_rng(42)
+    t = np.linspace(0, np.pi, 60)
+    clean = 90 + 60 * np.sin(t)          # swing peaking at 150°
+    noisy = clean + rng.normal(0, 2.5, 60)  # ±2.5° MediaPipe-like jitter
+    out = np.array(smooth_sequence(list(noisy)))
+    # Noise reduced...
+    assert np.std(out - clean) < np.std(noisy - clean) * 0.7
+    # ...without clipping the genuine peak by more than ~3°.
+    assert abs(float(out.max()) - clean.max()) < 3.0
+
+
+def test_extract_shot_angles_sets_is_world_flag():
+    lms = _landmarks({})
+    assert extract_shot_angles(lms)["is_world"] is False
+    assert extract_shot_angles(lms, world_landmarks=lms)["is_world"] is True
 
 
 def test_resample_channel_fixed_length():

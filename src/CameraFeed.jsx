@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { createPoseDetector } from './poseUtils';
+import { PoseSmoother } from './filters';
 import { drawSkeleton, calculateAngleJS, calculateSpineTiltJS } from './drawSkeleton';
 import { analyzeShotSequence, checkAPIHealth, fetchShots } from './api';
 import Feedback from './Feedback';
@@ -15,7 +16,10 @@ import {
   unlockMobileAudio
 } from './audioCoaching';
 
-// Stability checking configuration
+// Stability checking configuration. The auto-record trigger reads angles from
+// the RAW 2D screen landmarks (not the One Euro-smoothed world stream), so this
+// threshold is calibrated against unsmoothed jitter and needs no retune when
+// filter params change.
 const STABILITY_BUFFER_SIZE = 15;
 const STABILITY_THRESHOLD = 2.0;
 
@@ -34,6 +38,11 @@ function CameraFeed() {
   const poseDetectorRef = useRef(null);
   const frameBufferRef = useRef([]);
   const isRecordingRef = useRef(false);
+  // One Euro smoothing on the metric 3D world landmarks that feed backend angle
+  // math. Runs on every frame (not just while recording) so the filters are
+  // already warm when recording starts. Screen landmarks are left raw — they
+  // only drive drawing and MediaPipe already smooths them (smoothLandmarks).
+  const worldSmootherRef = useRef(new PoseSmoother());
 
   // Mirror rapidly-read UI state into refs so the per-frame pose callback can stay
   // referentially stable and NOT force the MediaPipe detector to be recreated.
@@ -264,6 +273,15 @@ function CameraFeed() {
 
     frameCountRef.current += 1;
 
+    // Smooth world landmarks every frame so the One Euro filters are warm
+    // before recording begins (first frames would otherwise be unfiltered).
+    const smoothedWorld = worldLandmarks
+      ? worldSmootherRef.current.smooth(
+          worldLandmarks.map(lm => ({ x: lm.x, y: lm.y, z: lm.z, visibility: lm.visibility ?? 1.0 })),
+          performance.now()
+        )
+      : null;
+
     const le = calculateAngleJS(landmarks[11], landmarks[13], landmarks[15]);
     const re = calculateAngleJS(landmarks[12], landmarks[14], landmarks[16]);
     const lk = calculateAngleJS(landmarks[23], landmarks[25], landmarks[27]);
@@ -297,10 +315,8 @@ function CameraFeed() {
     if (isRecordingRef.current) {
       frameBufferRef.current.push({
         landmarks: landmarks.map(lm => ({ x: lm.x, y: lm.y, z: lm.z, visibility: lm.visibility || 1.0 })),
-        // Metric 3D world landmarks (when available) power accurate backend angles.
-        world: worldLandmarks
-          ? worldLandmarks.map(lm => ({ x: lm.x, y: lm.y, z: lm.z, visibility: lm.visibility || 1.0 }))
-          : null,
+        // Metric 3D world landmarks (One Euro smoothed) power accurate backend angles.
+        world: smoothedWorld,
         timestamp: Date.now(),
       });
     }

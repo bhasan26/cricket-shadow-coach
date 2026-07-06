@@ -277,9 +277,15 @@ def evaluate_bowling_action(angle_sequence, is_right_handed=None, age_group="adu
     min_elbow = float(min(smoothed))
     max_elbow = float(max(smoothed))
 
-    # 20° leniency for 2D foreshortening (see disclaimer).
+    # Were angles measured from metric 3D world landmarks? (Legacy clients only
+    # send 2D image landmarks, where perspective foreshortening inflates the
+    # apparent extension — compensate with a leniency offset for those only.)
+    world_frames = sum(1 for f in angle_sequence if f.get("is_world"))
+    angles_are_3d = world_frames >= len(angle_sequence) / 2
+    leniency = 0.0 if angles_are_3d else 20.0
+
     raw_extension = max_elbow - min_elbow
-    elbow_extension = min(180.0, max(0.0, raw_extension - 20.0))
+    elbow_extension = min(180.0, max(0.0, raw_extension - leniency))
 
     spine_tilts = channel_values(angle_sequence, "spine_tilt")
     avg_spine_tilt = float(np.mean(spine_tilts)) if spine_tilts else 0.0
@@ -338,7 +344,7 @@ def evaluate_bowling_action(angle_sequence, is_right_handed=None, age_group="adu
     shoulder_widths = [f.get("shoulder_width", 0) for f in angle_sequence if f.get("shoulder_width", 0) > 0]
     avg_shoulder_width = float(np.mean(shoulder_widths)) if shoulder_widths else 0.0
     camera_angle_warning = ""
-    if 0 < avg_shoulder_width < 0.08:
+    if not angles_are_3d and 0 < avg_shoulder_width < 0.08:
         camera_angle_warning = (
             "You appear to be filmed side-on — elbow extension from a single 2D camera is "
             "unreliable at this angle. Film front-on or at ~45° for a better read."
