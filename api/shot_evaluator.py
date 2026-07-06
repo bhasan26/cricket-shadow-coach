@@ -300,7 +300,7 @@ def evaluate_bowling_action(angle_sequence, is_right_handed=None, age_group="adu
         )
     else:
         score = max(10, min(55, int(round(100 - (elbow_extension - 15.0) * 4.0))))
-        verdict = "⚠️ POSSIBLE THROW (indicative)"
+        verdict = f"⚠️ POSSIBLE THROW ({arm_name}, indicative)"
         feedback = (
             f"{verdict} | The ICC Rule 11.1 guideline is under 15° elbow extension. "
             f"This clip indicated {elbow_extension:.1f}° (from {min_elbow:.1f}° to {max_elbow:.1f}°). "
