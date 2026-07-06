@@ -32,6 +32,12 @@ html.light {
   --space-7: 80px;
   --space-8: 96px;
   --space-9: 128px;
+
+  /* Layered Depth Scale */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.09), 0 2px 6px rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 24px 60px rgba(0, 0, 0, 0.14), 0 8px 20px rgba(0, 0, 0, 0.08);
+  --shadow-glow: 0 8px 40px var(--accent-mint-glow);
 }
 
 html.dark {
@@ -65,6 +71,16 @@ html.dark {
   --space-7: 80px;
   --space-8: 96px;
   --space-9: 128px;
+
+  /* Layered Depth Scale */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 24px 60px rgba(0, 0, 0, 0.5), 0 8px 20px rgba(0, 0, 0, 0.35);
+  --shadow-glow: 0 8px 40px var(--accent-mint-glow);
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 * {
@@ -100,6 +116,8 @@ body {
 
 /* Global Button Styles to match Courto */
 .courto-btn {
+  position: relative;
+  overflow: hidden;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -112,19 +130,49 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.5px;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease, background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
   text-decoration: none;
+  will-change: transform;
+}
+
+/* Shine sweep across the button face on hover */
+.courto-btn::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -80%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(105deg, transparent 0%, rgba(255, 255, 255, 0.45) 50%, transparent 100%);
+  transform: skewX(-20deg);
+  pointer-events: none;
+  transition: left 0.55s ease;
+}
+.courto-btn:hover::after {
+  left: 130%;
+}
+
+.courto-btn:focus-visible {
+  outline: 3px solid var(--accent-mint);
+  outline-offset: 3px;
+}
+
+.courto-btn:active {
+  transform: translateY(1px) scale(0.98);
 }
 
 .courto-btn-primary {
   background: var(--accent-mint);
   color: #000000;
   border: 2px solid var(--accent-mint);
+  box-shadow: 0 6px 20px var(--accent-mint-glow), 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 .courto-btn-primary:hover {
   background: #000000;
   color: #ffffff;
   border-color: #000000;
+  transform: translateY(-3px);
+  box-shadow: 0 14px 34px var(--accent-mint-glow), 0 6px 12px rgba(0, 0, 0, 0.18);
 }
 
 .courto-btn-outline {
@@ -135,6 +183,22 @@ body {
 .courto-btn-outline:hover {
   background: var(--text-primary);
   color: var(--bg-base);
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
+}
+
+/* Motion accessibility */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* Animations */

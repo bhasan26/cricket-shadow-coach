@@ -61,6 +61,39 @@ function LandingPage({ onStartAnalysis, onNavigate }) {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
+  // Pointer-tracked 3D tilt on .tilt-3d cards. Inline transforms so the
+  // scroll-reveal transition on the same elements is never overridden at rest.
+  useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+
+    const cards = document.querySelectorAll('.tilt-3d');
+    const listeners = [];
+    cards.forEach((card) => {
+      const move = (e) => {
+        const r = card.getBoundingClientRect();
+        const px = (e.clientX - r.left) / r.width;
+        const py = (e.clientY - r.top) / r.height;
+        card.style.transition = 'transform 0.1s ease-out';
+        card.style.transform =
+          `perspective(1000px) rotateX(${((0.5 - py) * 8).toFixed(2)}deg) rotateY(${((px - 0.5) * 8).toFixed(2)}deg) scale3d(1.02, 1.02, 1.02)`;
+        card.style.setProperty('--mx', `${(px * 100).toFixed(1)}%`);
+        card.style.setProperty('--my', `${(py * 100).toFixed(1)}%`);
+      };
+      const leave = () => {
+        card.style.transition = 'transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)';
+        card.style.transform = '';
+      };
+      card.addEventListener('pointermove', move);
+      card.addEventListener('pointerleave', leave);
+      listeners.push([card, move, leave]);
+    });
+    return () => listeners.forEach(([card, move, leave]) => {
+      card.removeEventListener('pointermove', move);
+      card.removeEventListener('pointerleave', leave);
+    });
+  }, []);
+
   const close = () => setMenuOpen(false);
 
   return (
@@ -123,6 +156,8 @@ function LandingPage({ onStartAnalysis, onNavigate }) {
         <div className="hero-bg">
           <img src="/hero_cricket_bat.jpg" alt="Cricket bat and ball, symbolizing AI-powered batting and bowling technique analysis" className="hero-img" />
           <div className="hero-overlay"></div>
+          <div className="hero-orb orb-1"></div>
+          <div className="hero-orb orb-2"></div>
         </div>
 
         <div className="hero-content">
@@ -203,40 +238,44 @@ function LandingPage({ onStartAnalysis, onNavigate }) {
 
         <div className="styles-grid">
           {/* Card 1 */}
-          <div className="style-card reveal">
+          <div className="style-card tilt-3d reveal">
             <img src="/kagiso_rabada_fastballer.png" alt="Fast bowler mid-delivery, analyzed for ICC-legal arm extension" className="style-card-bg" />
             <div className="style-card-overlay">
               <div className="style-card-tag">BOWLING</div>
               <h3 className="style-card-title">FAST BOWLING</h3>
               <p className="style-card-desc">140+ km/h • High impact. Check your arm extension for ICC legality instantly.</p>
             </div>
+            <div className="tilt-glare"></div>
           </div>
           {/* Card 2 */}
-          <div className="style-card reveal reveal-delay-1">
+          <div className="style-card tilt-3d reveal reveal-delay-1">
             <img src="/shane_warne_hero.png" alt="Spin bowler releasing the ball, tracked for drift, turn, and release point" className="style-card-bg" />
             <div className="style-card-overlay">
               <div className="style-card-tag">BOWLING</div>
               <h3 className="style-card-title">SPIN BOWLING</h3>
               <p className="style-card-desc">Finger & wrist spin. Analyze drift, turn, and release points.</p>
             </div>
+            <div className="tilt-glare"></div>
           </div>
           {/* Card 3 */}
-          <div className="style-card reveal reveal-delay-2">
+          <div className="style-card tilt-3d reveal reveal-delay-2">
             <img src="/babar_azam_coverdrive_hero.png" alt="Batter executing a cover drive, checked for head alignment and full bat face" className="style-card-bg" />
             <div className="style-card-overlay">
               <div className="style-card-tag">BATTING</div>
               <h3 className="style-card-title">COVER DRIVE</h3>
               <p className="style-card-desc">Classic off-side. Ensure perfect head alignment and full face execution.</p>
             </div>
+            <div className="tilt-glare"></div>
           </div>
           {/* Card 4 */}
-          <div className="style-card reveal reveal-delay-3">
+          <div className="style-card tilt-3d reveal reveal-delay-3">
             <img src="/rohit_sharma_pull_hero.png" alt="Batter playing a pull shot, analyzed for weight transfer and bat swing path" className="style-card-bg" />
             <div className="style-card-overlay">
               <div className="style-card-tag">BATTING</div>
               <h3 className="style-card-title">PULL SHOT</h3>
               <p className="style-card-desc">Cross-bat power. Diagnose weight transfer and bat swing path.</p>
             </div>
+            <div className="tilt-glare"></div>
           </div>
         </div>
       </section>
@@ -383,7 +422,7 @@ function LandingPage({ onStartAnalysis, onNavigate }) {
             <p className="section-desc">Every feature, every analysis tool, completely free while we refine the platform. No credit card. No commitment.</p>
           </div>
 
-          <div className="pricing-card reveal reveal-delay-2">
+          <div className="pricing-card tilt-3d reveal reveal-delay-2">
             <div className="pricing-card-badge">BETA ACCESS</div>
             <div className="pricing-price">$0<span className="pricing-period">/ MONTH</span></div>
             <ul className="pricing-features-list">
@@ -407,6 +446,7 @@ function LandingPage({ onStartAnalysis, onNavigate }) {
             <button className="courto-btn courto-btn-primary w-full" onClick={onStartAnalysis}>
               GET STARTED NOW
             </button>
+            <div className="tilt-glare"></div>
           </div>
         </div>
       </section>
