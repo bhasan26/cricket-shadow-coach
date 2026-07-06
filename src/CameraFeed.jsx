@@ -6,6 +6,7 @@ import { analyzeShotSequence, checkAPIHealth, fetchShots } from './api';
 import Feedback from './Feedback';
 import Controls from './Controls';
 import ShotSelector from './components/ShotSelector';
+import { NANO_ICONS } from './shotIcons';
 import { 
   speakCoachingCue, 
   playCountdownStep, 
@@ -47,6 +48,8 @@ function CameraFeed() {
   // Per-frame counters + throttle guard for React state updates.
   const frameCountRef = useRef(0);
   const lastUiUpdateRef = useRef(0);
+  // Frame count at the previous UI update — used to derive the real measured FPS.
+  const lastFrameCountRef = useRef(0);
 
   const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
@@ -95,13 +98,17 @@ function CameraFeed() {
   const isRightHandedRef = useRef(true);
   // Rear camera by default — users prop the phone up and stand back for a full-body shot.
   const [facingMode, setFacingMode] = useState('environment');
+  // Camera permission failed — drives the in-frame denied/retry overlay.
+  const [cameraError, setCameraError] = useState(false);
+  // Bumped by the Retry button to re-run the camera effect after a denial.
+  const [cameraRetryToken, setCameraRetryToken] = useState(0);
 
   // Live client-side telemetry — batched into one object and updated at most every
   // ~100ms (see lastUiUpdateRef) so 30–60fps pose frames don't thrash React.
   const [telemetry, setTelemetry] = useState({
-    le: 0, re: 0, lk: 0, rk: 0, st: 0, frameCount: 0, bufferedFrameCount: 0,
+    le: 0, re: 0, lk: 0, rk: 0, st: 0, frameCount: 0, bufferedFrameCount: 0, fps: 0,
   });
-  const { le: liveLeftElbow, re: liveRightElbow, lk: liveLeftKnee, rk: liveRightKnee, st: liveSpineTilt } = telemetry;
+  const { le: liveLeftElbow, re: liveRightElbow, lk: liveLeftKnee, rk: liveRightKnee, st: liveSpineTilt, fps: liveFps } = telemetry;
   const frameCount = telemetry.frameCount;
   const bufferedFrameCount = telemetry.bufferedFrameCount;
 
@@ -137,7 +144,7 @@ function CameraFeed() {
     checkAPIHealth().then(healthy => {
       setApiReady(healthy);
       if (!healthy) {
-        setCurrentFeedback('⚠️ Backend offline. Visual skeleton active; session diagnostics disabled.');
+        setCurrentFeedback('Backend offline. Visual skeleton active; session diagnostics disabled.');
       }
     });
     fetchShots().then(shots => {
@@ -160,7 +167,7 @@ function CameraFeed() {
     playAutoStartSound();
     speakCoachingCue(`Recording started. Play your shot!`, true);
     
-    setCurrentFeedback(`🔴 Analyzing live ${shotName}... Perform your actions in view!`);
+    setCurrentFeedback(`Analyzing live ${shotName}... Perform your actions in view!`);
     setCurrentScore(0);
     setLastShotName('');
   }, [selectedShot, availableShots]);
@@ -215,6 +222,7 @@ function CameraFeed() {
 
       const newHistoryItem = {
         name: availableShots[selectedShot]?.name || selectedShot,
+        key: selectedShot,
         emoji: availableShots[selectedShot]?.emoji || '🏏',
         score: result.score || 0,
         isLegal: result.is_good_shot,
@@ -235,7 +243,7 @@ function CameraFeed() {
 
     } catch {
       speakCoachingCue(`Analysis failed.`, true);
-      setCurrentFeedback('❌ Analysis failed. Ensure backend API service is running locally.');
+      setCurrentFeedback('Analysis failed. Ensure backend API service is running locally.');
     } finally {
       setIsAnalyzing(false);
       frameBufferRef.current = [];
@@ -300,10 +308,16 @@ function CameraFeed() {
     // Throttle React state updates: telemetry gauges + counters refresh at most
     // every 100ms regardless of the 30–60fps pose stream.
     const now = Date.now();
-    if (now - lastUiUpdateRef.current >= 100) {
+    const elapsed = now - lastUiUpdateRef.current;
+    if (elapsed >= 100) {
+      // Real measured FPS from frames processed since the last UI refresh.
+      const fps = lastUiUpdateRef.current === 0
+        ? 0
+        : Math.round(((frameCountRef.current - lastFrameCountRef.current) * 1000) / elapsed);
       lastUiUpdateRef.current = now;
+      lastFrameCountRef.current = frameCountRef.current;
       setTelemetry({
-        le, re, lk, rk, st,
+        le, re, lk, rk, st, fps,
         frameCount: frameCountRef.current,
         bufferedFrameCount: frameBufferRef.current.length,
       });
@@ -413,6 +427,7 @@ function CameraFeed() {
     let mounted = true;
     const startCamera = async () => {
       try {
+        setCameraError(false);
         // Stop any previous stream before switching cameras.
         if (streamRef.current) {
           streamRef.current.getTracks().forEach(t => t.stop());
@@ -429,12 +444,13 @@ function CameraFeed() {
           videoRef.current.onloadedmetadata = () => setCameraReady(true);
         }
       } catch {
-        setCurrentFeedback('📷 Camera access denied. Please allow camera permissions in your browser to begin analysis.');
+        if (mounted) setCameraError(true);
+        setCurrentFeedback('Camera access denied. Please allow camera permissions in your browser to begin analysis.');
       }
     };
     startCamera();
     return () => { mounted = false; if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop()); };
-  }, [facingMode]);
+  }, [facingMode, cameraRetryToken]);
 
   useEffect(() => {
     if (!cameraReady || !videoRef.current) return;
@@ -564,27 +580,49 @@ function CameraFeed() {
                 gap: '16px', zIndex: 5,
                 padding: '24px', textAlign: 'center'
               }}>
-                <div className="record-dot-pulse" style={{
-                  background: 'rgba(0, 245, 160, 0.08)',
-                  border: '1.5px solid rgba(0, 245, 160, 0.3)',
+                <div className={cameraError ? '' : 'record-dot-pulse'} style={{
+                  background: cameraError ? 'rgba(255, 51, 102, 0.08)' : 'rgba(0, 245, 160, 0.08)',
+                  border: cameraError ? '1.5px solid rgba(255, 51, 102, 0.3)' : '1.5px solid rgba(0, 245, 160, 0.3)',
                   borderRadius: '50%',
                   padding: '20px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  boxShadow: '0 0 20px rgba(0, 245, 160, 0.15)',
+                  boxShadow: cameraError ? '0 0 20px rgba(255, 51, 102, 0.15)' : '0 0 20px rgba(0, 245, 160, 0.15)',
                   marginBottom: '8px'
                 }}>
-                  <svg width="40" height="40" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="#00f5a0">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316A2.192 2.192 0 0 0 14.502 4h-5c-.7 0-1.363.336-1.787.909l-.822 1.316ZM12 15.75a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
-                  </svg>
+                  {cameraError ? (
+                    <svg width="40" height="40" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="#ff3366">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9.303 3.376c.866 1.5-.217 3.374-1.948 3.374H4.645c-1.73 0-2.813-1.874-1.948-3.374L9.75 3.378c.866-1.5 3.032-1.5 3.898 0l7.655 12.748ZM12 15.75h.007v.008H12v-.008Z" />
+                    </svg>
+                  ) : (
+                    <svg width="40" height="40" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="#00f5a0">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316A2.192 2.192 0 0 0 14.502 4h-5c-.7 0-1.363.336-1.787.909l-.822 1.316ZM12 15.75a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
+                    </svg>
+                  )}
                 </div>
-                <span style={{ fontWeight: 800, letterSpacing: '2px', textTransform: 'uppercase', fontSize: '0.95rem', color: '#00f5a0', textShadow: '0 0 10px rgba(0,245,160,0.2)' }}>
-                  Click Start Practice to begin
+                <span style={{ fontWeight: 800, letterSpacing: '2px', textTransform: 'uppercase', fontSize: '0.95rem', color: cameraError ? '#ff3366' : '#00f5a0', textShadow: cameraError ? '0 0 10px rgba(255,51,102,0.2)' : '0 0 10px rgba(0,245,160,0.2)' }}>
+                  {cameraError ? 'Camera access needed' : 'Starting camera…'}
                 </span>
-                <span style={{ fontSize: '0.8rem', color: '#94a3b8', maxWidth: '320px', lineHeight: 1.4 }}>
-                  Please allow camera permissions if prompted to calibrate your live shadow analysis.
+                <span style={{ fontSize: '0.8rem', color: '#94a3b8', maxWidth: '340px', lineHeight: 1.5 }}>
+                  {cameraError
+                    ? "Camera access was blocked. Allow the camera in your browser's site settings, then retry. Video is analysed on your device and never uploaded."
+                    : 'Your browser may ask for camera permission. Video is analysed on your device and never uploaded.'}
                 </span>
+                {cameraError && (
+                  <button
+                    type="button"
+                    onClick={() => { unlockMobileAudio(); setCameraRetryToken(t => t + 1); }}
+                    style={{
+                      minHeight: '44px', padding: '12px 28px', borderRadius: '12px',
+                      background: 'rgba(0, 245, 160, 0.1)', border: '1px solid rgba(0, 245, 160, 0.35)',
+                      color: '#00f5a0', fontSize: '0.82rem', fontWeight: 800, cursor: 'pointer',
+                      textTransform: 'uppercase', letterSpacing: '1px',
+                    }}
+                  >
+                    Retry Camera
+                  </button>
+                )}
               </div>
             )}
 
@@ -640,7 +678,15 @@ function CameraFeed() {
                 zIndex: 3,
                 letterSpacing: '0.8px'
               }}>
-                <span style={{ fontSize: '1.2rem' }}>{availableShots[selectedShot]?.emoji}</span>
+                {NANO_ICONS[selectedShot] ? (
+                  <img
+                    src={NANO_ICONS[selectedShot]}
+                    alt=""
+                    style={{ width: '22px', height: '22px', borderRadius: '6px', objectFit: 'cover' }}
+                  />
+                ) : (
+                  <span style={{ fontSize: '1.2rem' }}>{availableShots[selectedShot]?.emoji}</span>
+                )}
                 <span>{availableShots[selectedShot]?.name.toUpperCase()}</span>
               </div>
             )}
@@ -671,7 +717,7 @@ function CameraFeed() {
 
           {/* Statistics Bar */}
           <div className="mono-telemetry" style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', color: '#94a3b8', padding: '12px 8px' }}>
-            <span>STREAM STABILITY: {cameraReady ? '99.8% (32 FPS)' : 'OFFLINE'}</span>
+            <span>LIVE STREAM: {cameraReady && liveFps > 0 ? `${liveFps} FPS` : 'OFFLINE'}</span>
             <span>TOTAL FRAMES: {frameCount}</span>
           </div>
 
@@ -705,11 +751,15 @@ function CameraFeed() {
                     {renderGauge('Spine Tilt (Balance)', liveSpineTilt, 60, 'spine', 'Target: <22°')}
                   </div>
                   <div className="telemetry-grid-full" style={{
-                    marginTop: '12px', padding: '10px 12px', borderRadius: '10px', 
+                    marginTop: '12px', padding: '10px 12px', borderRadius: '10px',
                     background: 'rgba(8, 14, 27, 0.35)', border: '1px solid rgba(255,255,255,0.03)',
-                    fontSize: '0.74rem', color: '#cbd5e1', lineHeight: 1.3
+                    fontSize: '0.74rem', color: '#cbd5e1', lineHeight: 1.3,
+                    display: 'flex', alignItems: 'center', gap: '8px'
                   }}>
-                    ℹ️ Keep your arm straight during release. System measures elbow angle change.
+                    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="#00e5ff" style={{ flexShrink: 0 }}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
+                    </svg>
+                    <span>Keep your arm straight during release. System measures elbow angle change.</span>
                   </div>
                 </>
               ) : (
@@ -748,18 +798,19 @@ function CameraFeed() {
             alignItems: 'center',
             gap: '12px'
           }}>
-            <span style={{ 
-              fontSize: '1.5rem', 
-              background: 'rgba(0, 245, 160, 0.08)', 
-              padding: '8px', 
-              borderRadius: '10px', 
-              display: 'flex', 
-              alignItems: 'center', 
+            <span style={{
+              background: 'rgba(0, 245, 160, 0.08)',
+              padding: '10px',
+              borderRadius: '10px',
+              display: 'flex',
+              alignItems: 'center',
               justifyContent: 'center',
               boxShadow: '0 0 15px rgba(0, 245, 160, 0.1)',
               flexShrink: 0
             }}>
-              💡
+              <svg width="20" height="20" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="#00f5a0">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 18v-5.25m0 0a6.01 6.01 0 0 0 1.5-.189m-1.5.189a6.01 6.01 0 0 1-1.5-.189m3.75 7.478a12.06 12.06 0 0 1-4.5 0m3.75 2.383a14.406 14.406 0 0 1-3 0M14.25 18v-.192c0-.983.658-1.823 1.508-2.316a7.5 7.5 0 1 0-7.517 0c.85.493 1.509 1.333 1.509 2.316V18" />
+              </svg>
             </span>
             <div>
               <strong style={{ color: '#00f5a0', display: 'block', marginBottom: '2px', textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: '0.75rem' }}>
@@ -793,7 +844,9 @@ function CameraFeed() {
               boxShadow: '0 4px 15px rgba(255,159,13,0.06)',
               marginBottom: '16px'
             }}>
-              <span style={{ fontSize: '1.25rem' }}>📱</span>
+              <svg width="20" height="20" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="#ff9f0d" style={{ flexShrink: 0 }}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M21.015 4.356v4.993m0 0h-4.992m4.992 0-3.181-3.183a8.25 8.25 0 0 0-13.803 3.7" />
+              </svg>
               <span><strong>Rotation Tip:</strong> Turn your device horizontally (landscape) for optimal full-body crease tracking!</span>
             </div>
           )}
@@ -826,6 +879,9 @@ function CameraFeed() {
                 <div style={{ fontSize: '13px', color: '#cbd5e1', marginTop: '4px' }}>Triggers countdown in stance</div>
               </div>
               <button
+                role="switch"
+                aria-checked={autoRecordEnabled}
+                aria-label="Auto-record hands-free"
                 onClick={() => {
                   unlockMobileAudio();
                   setAutoRecordEnabled(!autoRecordEnabled);
@@ -858,6 +914,9 @@ function CameraFeed() {
                 <div style={{ fontSize: '13px', color: '#cbd5e1', marginTop: '4px' }}>Overlays standard layout blueprints</div>
               </div>
               <button
+                role="switch"
+                aria-checked={ghostEnabled}
+                aria-label="Ghost overlay"
                 onClick={() => {
                   unlockMobileAudio();
                   setGhostEnabled(!ghostEnabled);

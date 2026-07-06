@@ -50,37 +50,42 @@ function Controls({ onStart, onStop, isRecording, isAnalyzing, isRightHanded = t
           </div>
         </div>
       )}
+      {/* Disabled while recording — re-triggering start would silently wipe the
+          captured frames; the button doubles as the live-recording status. */}
       <button
         type="button"
         onClick={onStart}
-        disabled={isAnalyzing}
+        disabled={isAnalyzing || isRecording}
         className={isRecording ? 'btn-warning' : 'btn-primary'}
         style={{
           ...btnBase,
           opacity: isAnalyzing ? 0.5 : 1,
+          cursor: (isAnalyzing || isRecording) ? 'not-allowed' : 'pointer',
         }}
       >
         {isRecording ? (
           <>
-            <span style={{ 
-              display: 'inline-block', 
-              width: '8px', 
-              height: '8px', 
-              borderRadius: '50%', 
-              background: '#0b0f19', 
+            <span style={{
+              display: 'inline-block',
+              width: '8px',
+              height: '8px',
+              borderRadius: '50%',
+              background: '#0b0f19',
               boxShadow: '0 0 10px #0b0f19',
-              animation: 'live-record-glow 1s infinite' 
+              animation: 'live-record-glow 1s infinite'
             }} />
-            ⏺ Recording Live...
+            Recording Live...
           </>
         ) : (
           <>
-            <span style={{ fontSize: '1rem', marginTop: '-2px' }}>▶</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M8 5.14v13.72c0 .86.94 1.39 1.68.94l10.9-6.86a1.1 1.1 0 0 0 0-1.88L9.68 4.2A1.1 1.1 0 0 0 8 5.14Z" />
+            </svg>
             Start Practice
           </>
         )}
       </button>
-      
+
       <button
         type="button"
         onClick={onStop}
@@ -92,7 +97,9 @@ function Controls({ onStart, onStop, isRecording, isAnalyzing, isRightHanded = t
           cursor: (!isRecording || isAnalyzing) ? 'not-allowed' : 'pointer',
         }}
       >
-        <span>⏹</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <rect x="6" y="6" width="12" height="12" rx="2" />
+        </svg>
         Stop & Analyze Action
       </button>
     </div>

@@ -1,6 +1,5 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import InstallButton from './InstallButton';
-import ThemeToggle from './ThemeToggle';
 
 // Single nav button — hover styling lives in App.css (.app-nav-btn:hover) so it
 // survives the cursor entering child <svg>/<span> nodes, unlike JS onMouseEnter.
@@ -32,7 +31,7 @@ export default function Header() {
       >
         <img
           src="/favicon.svg"
-          alt="ShadowCoach Logo"
+          alt="Cricket Coach Logo"
           style={{
             width: '40px', height: '40px', borderRadius: '10px',
             border: '1px solid rgba(0, 245, 160, 0.35)',
@@ -46,7 +45,7 @@ export default function Header() {
           WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
           display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px',
         }}>
-          SHADOWCOACH <span style={{ color: '#00f5a0', WebkitTextFillColor: 'initial', fontWeight: 900 }}>// BIOMECHANICS</span>
+          CRICKET<span style={{ color: '#00f5a0', WebkitTextFillColor: 'initial', fontWeight: 900 }}>COACH</span> <span style={{ color: '#00f5a0', WebkitTextFillColor: 'initial', fontWeight: 900 }}>// BIOMECHANICS</span>
         </span>
       </div>
 
@@ -72,7 +71,6 @@ export default function Header() {
           />
         </div>
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-          <ThemeToggle />
           <InstallButton />
         </div>
       </div>

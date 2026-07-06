@@ -1,14 +1,5 @@
 import { unlockMobileAudio } from '../audioCoaching';
-
-// Icon assets mapper
-const NANO_ICONS = {
-  cover_drive: '/cover-drive-nano.png',
-  straight_drive: '/straight-drive-nano.png',
-  pull_shot: '/pull-shot-nano.png',
-  defensive_block: '/defensive-block-nano.png',
-  flick_shot: '/flick-shot-nano.png',
-  bowling_action: '/bowling-action-nano.png',
-};
+import { NANO_ICONS } from '../shotIcons';
 
 // "Choose Shot" drill grid (Step 01 of the live journey).
 export default function ShotSelector({ availableShots, selectedShot, isRecording, onSelect, className }) {
