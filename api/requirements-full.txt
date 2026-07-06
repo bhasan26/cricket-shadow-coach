@@ -1,0 +1,6 @@
+# Full dependency set for container deployments (Render / Fly via Dockerfile).
+# Includes the heavy CV stack needed by /api/track-ball, which is too large for
+# Vercel serverless. The serverless deployment uses requirements.txt instead.
+-r requirements.txt
+opencv-python-headless
+ultralytics

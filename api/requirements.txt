@@ -4,3 +4,4 @@ numpy
 pydantic
 scipy
 python-multipart
+fastdtw

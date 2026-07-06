@@ -28,7 +28,19 @@ export async function analyzeShotSequence(shotSequence, shotType = 'cover_drive'
     });
 
     if (!response.ok) {
-      throw new Error(`API error: ${response.status} ${response.statusText}`);
+      // Surface the server's friendly `detail` message when present, without
+      // leaking raw stack traces (the backend no longer returns those).
+      let detail = '';
+      try {
+        const body = await response.json();
+        detail = body?.detail || '';
+      } catch {
+        detail = '';
+      }
+      const friendly = response.status === 422
+        ? 'Could not read your pose data — please record the shot again.'
+        : (detail || 'Analysis failed. Please try again.');
+      throw new Error(friendly);
     }
 
     return await response.json();
