@@ -2,9 +2,12 @@ services:
   - type: web
     name: cricket-shadow-coach-api
     env: python
-    rootDir: backend
-    buildCommand: "pip install -r requirements.txt"
-    startCommand: "uvicorn main:app --host 0.0.0.0 --port $PORT"
+    rootDir: api
+    # Full CV stack so /api/track-ball works on this container deployment.
+    buildCommand: "pip install -r requirements-full.txt"
+    startCommand: "uvicorn index:app --host 0.0.0.0 --port $PORT"
     envVars:
       - key: PYTHON_VERSION
-        value: 3.11.0
+        value: 3.12.0
+      - key: ENABLE_BALL_TRACKING
+        value: "true"

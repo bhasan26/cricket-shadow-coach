@@ -23,6 +23,9 @@ dist-ssr
 *.sln
 *.sw?
 
+# Large model weights — not tracked in git (attach to a GitHub Release instead)
+*.pt
+
 # Python
 __pycache__/
 *.py[cod]
