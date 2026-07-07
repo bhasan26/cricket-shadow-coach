@@ -8,9 +8,22 @@ from shot_evaluator import score_phases, segment_phases
 
 # ── geo.py loading ─────────────────────────────────────────────────────────
 
-def test_no_recorded_reference_falls_back_to_hardcoded():
-    assert get_ideal_angle_sequence("cover_drive") == IDEAL_COVER_DRIVE
-    assert get_reference_tolerance("cover_drive") is None
+def test_shot_type_without_reference_falls_back_to_hardcoded():
+    # Unknown shot types have no recorded reference and fall back to the
+    # hardcoded cover-drive sequence with no tolerance bands.
+    assert get_ideal_angle_sequence("nonexistent_shot") == IDEAL_COVER_DRIVE
+    assert get_reference_tolerance("nonexistent_shot") is None
+
+
+def test_recorded_references_loaded_for_app_shots():
+    # Real references (built from the cricketshot research dataset) exist for
+    # all five batting shot types and carry per-frame tolerance bands.
+    for shot in ("cover_drive", "straight_drive", "pull_shot",
+                 "defensive_block", "flick_shot"):
+        seq = get_ideal_angle_sequence(shot)
+        tol = get_reference_tolerance(shot)
+        assert len(seq) == 32, shot
+        assert tol and "left_elbow" in tol and len(tol["left_elbow"]) == 32, shot
 
 
 def test_loader_reads_reference_json(tmp_path, monkeypatch):
