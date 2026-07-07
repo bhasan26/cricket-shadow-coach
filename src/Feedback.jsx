@@ -12,7 +12,10 @@ function Feedback({ score, message, shotName = '', analysisResult = null, histor
     return '#ff3366'; // Neon Pink
   };
 
-  const scoreColor = getScoreColor(scorePercentage);
+  // Low measurement confidence (short delivery window / poor joint tracking):
+  // gray out the number so an unreliable score doesn't read as a verdict.
+  const isLowConfidence = analysisResult?.confidence === 'low';
+  const scoreColor = isLowConfidence ? '#64748b' : getScoreColor(scorePercentage);
 
   const getScoreLabel = (s) => {
     if (s >= 80) return 'ELITE PERFORMANCE';
@@ -113,6 +116,16 @@ function Feedback({ score, message, shotName = '', analysisResult = null, histor
           <div style={{ fontSize: '0.74rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px' }}>
             Biomechanical Rating Index
           </div>
+          {isLowConfidence && (
+            <div style={{
+              marginTop: '6px', fontSize: '0.68rem', fontWeight: 800, letterSpacing: '0.8px',
+              textTransform: 'uppercase', color: '#94a3b8',
+              background: 'rgba(148, 163, 184, 0.08)', border: '1px solid rgba(148, 163, 184, 0.25)',
+              borderRadius: '20px', padding: '3px 10px', display: 'inline-block',
+            }}>
+              ⚠ Low confidence — indicative only
+            </div>
+          )}
         </div>
       </div>
 

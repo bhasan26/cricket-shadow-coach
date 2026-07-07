@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { createPoseDetector } from './poseUtils';
 import { PoseSmoother } from './filters';
+import { getFramingHint, FRAMING_HINT_HOLD_MS } from './framing';
 import { drawSkeleton, calculateAngleJS, calculateSpineTiltJS } from './drawSkeleton';
 import { analyzeShotSequence, checkAPIHealth, fetchShots } from './api';
 import Feedback from './Feedback';
@@ -129,6 +130,12 @@ function CameraFeed() {
   const recordingStartTimeRef = useRef(0);
   const [hudStateLabel, setHudStateLabel] = useState('STAND IN STANCE');
   const [mobileTab, setMobileTab] = useState('choose-shot'); // 'choose-shot', 'camera', 'results'
+
+  // Pre-drill framing guidance ('' = well framed). Candidate refs debounce the
+  // per-frame signal so a single occluded frame doesn't flash a prompt.
+  const [framingHint, setFramingHint] = useState('');
+  const framingCandidateRef = useRef({ hint: '', since: 0 });
+  const framingShownRef = useRef('');
 
   // Keep refs in sync with state so the stable per-frame callback reads fresh values.
   useEffect(() => { autoRecordEnabledRef.current = autoRecordEnabled; }, [autoRecordEnabled]);
@@ -340,6 +347,22 @@ function CameraFeed() {
         frameCount: frameCountRef.current,
         bufferedFrameCount: frameBufferRef.current.length,
       });
+
+      // Pre-drill framing guidance — only outside a recording, debounced so a
+      // single occluded frame doesn't flash a prompt.
+      if (!isRecordingRef.current) {
+        const hint = getFramingHint(landmarks);
+        const cand = framingCandidateRef.current;
+        if (hint !== cand.hint) {
+          framingCandidateRef.current = { hint, since: now };
+        } else if (now - cand.since >= FRAMING_HINT_HOLD_MS && framingShownRef.current !== hint) {
+          framingShownRef.current = hint;
+          setFramingHint(hint);
+        }
+      } else if (framingShownRef.current !== '') {
+        framingShownRef.current = '';
+        setFramingHint('');
+      }
     }
 
     if (autoRecordEnabled && !isAnalyzing) {
@@ -625,8 +648,8 @@ function CameraFeed() {
                 </span>
                 <span style={{ fontSize: '0.8rem', color: '#94a3b8', maxWidth: '340px', lineHeight: 1.5 }}>
                   {cameraError
-                    ? "Camera access was blocked. Allow the camera in your browser's site settings, then retry. Video is analysed on your device and never uploaded."
-                    : 'Your browser may ask for camera permission. Video is analysed on your device and never uploaded.'}
+                    ? "Camera access was blocked. Allow the camera in your browser's site settings, then retry. Your video never leaves your device — only anonymous joint coordinates are sent for scoring."
+                    : 'Your browser may ask for camera permission. Your video never leaves your device — only anonymous joint coordinates are sent for scoring.'}
                 </span>
                 {cameraError && (
                   <button
@@ -642,6 +665,27 @@ function CameraFeed() {
                     Retry Camera
                   </button>
                 )}
+              </div>
+            )}
+
+            {/* Pre-drill framing guidance banner */}
+            {cameraReady && !isRecording && framingHint && (
+              <div style={{
+                position: 'absolute', bottom: '20px', left: '50%', transform: 'translateX(-50%)',
+                background: 'rgba(255, 159, 13, 0.92)',
+                backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+                border: '1px solid rgba(255, 255, 255, 0.12)',
+                padding: '10px 20px', borderRadius: '30px',
+                fontSize: '0.8rem', fontWeight: 800, color: '#0b0f19',
+                boxShadow: '0 8px 24px rgba(255, 159, 13, 0.35)',
+                display: 'flex', alignItems: 'center', gap: '8px', zIndex: 4,
+                letterSpacing: '0.5px', whiteSpace: 'nowrap', maxWidth: '92%',
+              }}>
+                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" style={{ flexShrink: 0 }}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m0 3.75h.008v.008H12v-.008Z" />
+                  <circle cx="12" cy="12" r="9.25" />
+                </svg>
+                <span>{framingHint}</span>
               </div>
             )}
 

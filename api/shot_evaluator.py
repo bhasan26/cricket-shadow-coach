@@ -15,7 +15,6 @@ import numpy as np
 
 from angle_utils import (
     extract_shot_angles,
-    calculate_distance,
     channel_values,
     smooth_sequence,
     resample_channel,
@@ -25,7 +24,6 @@ from geo import (
     get_ideal_angle_sequence,
     get_reference_tolerance,
     get_shot_name,
-    get_angle_threshold,
     get_feedback_for_angle,
     get_position_feedback,
 )

@@ -4,6 +4,68 @@
 
 The Cricket Shadow Batting Coach is a real-time computer vision application that analyzes cricket batting technique using pose estimation and biomechanical analysis.
 
+## Measurement & Scoring Pipeline (accuracy work, 2026-07)
+
+How a recorded drill becomes a score, and where each accuracy decision lives:
+
+### 1. Landmarks: 3D world coordinates for math, 2D screen for drawing
+
+MediaPipe Pose emits both `poseLandmarks` (normalized image space) and
+`poseWorldLandmarks` (metric 3D, meters, hip-origin). The skeleton overlay
+draws from screen space; **all joint-angle math uses world landmarks**, which
+removes 20–60° of perspective/foreshortening error. Legacy clients that send
+only 2D landmarks still work: each frame is tagged `is_world`, and the bowling
+check applies a documented 20° foreshortening leniency to 2D-only sequences
+(none for 3D).
+
+Phase/window detection positions (`wrist_y`, `elbow_y`, `shoulder_y`) are
+deliberately screen-space — "wrist above shoulder" is a camera-relative notion
+(see comment in `api/angle_utils.py`).
+
+### 2. Filtering
+
+- **Client** (`src/filters.js`): One Euro filter per landmark per axis on
+  world landmarks (`minCutoff=1.0`, `beta=0.007`), warmed on every frame,
+  reset after tracking gaps > 500 ms.
+- **Server** (`api/angle_utils.smooth_sequence`): Savitzky-Golay (window 7,
+  polyorder 2) over each angle channel — defense-in-depth for old clients.
+  `None` (untracked joint, visibility < 0.5) is preserved, never interpolated.
+
+### 3. Reference data (`api/references/`)
+
+Recorded references — real takes captured with `api/tools/capture_reference.py`
+and averaged with `api/tools/build_reference.py` (DTW-aligned mean + per-frame
+std) — are loaded by `geo.py` at import and take priority over the hardcoded
+fallback sequences. Scoring against a recorded reference uses the per-frame
+std as a tolerance band: within 1 std = full marks, scaling to 0 at 3 std
+(`dtw_utils.tolerance_score`). DTW scores are normalized by warping-path
+length so recording duration doesn't affect the score.
+
+### 4. Phase-aware scoring
+
+`shot_evaluator.segment_phases` splits the front-elbow angle series into
+stance → backswing (flexing) → impact (peak extension ± window) →
+follow-through, rule-based. Each phase is scored against the matching segment
+of the reference and returned as `backswing_phase` / `impact_phase` /
+`follow_through_phase` in `angle_scores`.
+
+### 5. Bowling legality (indicative only)
+
+Elbow extension is measured **only inside the ICC-style window**: from the
+frame the bowling upper arm passes horizontal to the release frame (wrist
+apex). Verdicts report an *estimated* extension against the 15° guideline —
+30 fps webcam analysis is never an official assessment (lab testing is 250 fps
+3D capture). A `confidence: low` flag fires when the window has < 5 frames,
+could not be isolated, or tracking quality < 60%; the UI grays the score.
+
+### 6. Planned ML layer (`api/train_landmark_classifier.py`)
+
+A small 1D temporal CNN over normalized landmark sequences (48×99 input,
+< 2 MB as ONNX) for shot verification and a bowling second opinion, to run
+in-browser via `onnxruntime-web`. Training requires per-class video clips;
+methodology (70/15/15 split by video, early stopping, confusion matrix, ONNX
+parity check) is enforced by the script. Ship gate: ≥ 80% test accuracy.
+
 ## Component Architecture
 
 ```
