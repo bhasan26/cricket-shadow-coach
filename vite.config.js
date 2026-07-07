@@ -12,8 +12,9 @@ export default defineConfig({
       // Keep the hand-authored public/manifest.json (already linked in index.html).
       manifest: false,
       workbox: {
-        // Precache the actual hashed build output so offline launch renders the shell.
-        globPatterns: ['**/*.{js,css,html,svg,png,ico,woff,woff2}'],
+        // Precache the actual hashed build output so offline launch renders the
+        // shell, plus the (small) in-browser shot-classifier model.
+        globPatterns: ['**/*.{js,css,html,svg,png,ico,woff,woff2,onnx}'],
         navigateFallback: '/index.html',
         // Never serve the SPA shell for API calls.
         navigateFallbackDenylist: [/^\/api/],

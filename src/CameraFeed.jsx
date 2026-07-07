@@ -3,6 +3,7 @@ import { Helmet } from 'react-helmet-async';
 import { createPoseDetector } from './poseUtils';
 import { PoseSmoother } from './filters';
 import { getFramingHint, FRAMING_HINT_HOLD_MS } from './framing';
+import { classifyShot, isExperimentalEnabled } from './shotClassifier';
 import { drawSkeleton, calculateAngleJS, calculateSpineTiltJS } from './drawSkeleton';
 import { analyzeShotSequence, checkAPIHealth, fetchShots } from './api';
 import Feedback from './Feedback';
@@ -215,7 +216,20 @@ function CameraFeed() {
       const worldFrames = frames.map(f => f.world);
       const worldSequence = worldFrames.every(Boolean) ? worldFrames : null;
       const result = await analyzeShotSequence(sequence, selectedShot, worldSequence, isRightHandedRef.current);
-      
+
+      // EXPERIMENTAL shot verification (in-browser ONNX classifier, 62.6%
+      // test accuracy — below the 80% default-on gate, so opt-in only via
+      // ?experimental=1). Second opinion in the feedback, never the score.
+      if (isExperimentalEnabled() && selectedShot !== 'bowling_action' && worldSequence) {
+        const guess = await classifyShot(worldSequence);
+        if (guess && guess.confidence > 0.7 && guess.shotType !== selectedShot) {
+          const guessName = availableShots[guess.shotType]?.name || guess.shotType;
+          result.feedback = `🤖 This looked more like a ${guessName} `
+            + `(${Math.round(guess.confidence * 100)}% confidence — experimental). | `
+            + (result.feedback || '');
+        }
+      }
+
       setCurrentScore(result.score || 0);
       setCurrentFeedback(result.feedback || 'Analysis complete');
       setLastShotName(result.shot_name || shotName);
