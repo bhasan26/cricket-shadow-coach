@@ -14,10 +14,10 @@ Scoring pipeline (batting):
 import numpy as np
 
 from angle_utils import (
-    extract_shot_angles,
     channel_values,
-    smooth_sequence,
+    extract_shot_angles,
     resample_channel,
+    smooth_sequence,
 )
 from dtw_utils import (
     calculate_dtw_distance,
@@ -26,12 +26,12 @@ from dtw_utils import (
     tolerance_score,
 )
 from geo import (
-    get_ideal_angle_sequence,
-    get_reference_tolerance,
-    get_recorded_shot_types,
-    get_shot_name,
     get_feedback_for_angle,
+    get_ideal_angle_sequence,
     get_phase_feedback,
+    get_recorded_shot_types,
+    get_reference_tolerance,
+    get_shot_name,
 )
 
 # Angle channels compared against ideal models.
@@ -421,7 +421,7 @@ def evaluate_bowling_action(angle_sequence, is_right_handed=None, age_group="adu
         confidence = "low"
 
     if is_legal:
-        score = max(80, min(100, int(round(100 - (elbow_extension * 1.5)))))
+        score = max(80, min(100, round(100 - (elbow_extension * 1.5))))
         verdict = f"✅ Estimated extension {elbow_extension:.1f}° ({arm_name})"
         feedback = (
             f"{verdict} | Within the ICC Rule 11.1 15° guideline "
@@ -429,7 +429,7 @@ def evaluate_bowling_action(angle_sequence, is_right_handed=None, age_group="adu
             f"Smooth release with good straight-arm discipline."
         )
     else:
-        score = max(10, min(55, int(round(100 - (elbow_extension - 15.0) * 4.0))))
+        score = max(10, min(55, round(100 - (elbow_extension - 15.0) * 4.0)))
         verdict = f"⚠️ Estimated extension {elbow_extension:.1f}° ({arm_name})"
         feedback = (
             f"{verdict} | Exceeds the ICC Rule 11.1 15° guideline "
@@ -794,7 +794,7 @@ def calculate_sequence_score(angle_sequence, shot_type="cover_drive", is_right_h
 
 
     result = {
-        "score": int(round(final_score)),
+        "score": round(final_score),
         "shot_type": shot_type,
         "shot_name": shot_name,
         "feedback": " | ".join(feedback_list[:3]),
@@ -825,7 +825,7 @@ def evaluate_shot(current_angles, accumulated_sequence=None, shot_type="cover_dr
     feedback_list = generate_feedback_list(current_angles)
     feedback = " | ".join(feedback_list) if feedback_list else "Frame captured"
     return {
-        "score": int(round(score)),
+        "score": round(score),
         "feedback": feedback,
         "angles": current_angles,
     }

@@ -2,9 +2,8 @@ import logging
 import os
 import sys
 import uuid
-from typing import List, Optional
 
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, field_validator
 
@@ -63,14 +62,14 @@ class Landmark(BaseModel):
     visibility: float = 1.0
 
 
-def _validate_frame(frame: List[Landmark]) -> List[Landmark]:
+def _validate_frame(frame: list[Landmark]) -> list[Landmark]:
     if len(frame) != POSE_LANDMARK_COUNT:
         raise ValueError(f"Each frame must contain exactly {POSE_LANDMARK_COUNT} landmarks (got {len(frame)})")
     return frame
 
 
 class FramePayload(BaseModel):
-    poseLandmarks: List[Landmark]
+    poseLandmarks: list[Landmark]
 
     @field_validator("poseLandmarks")
     @classmethod
@@ -79,12 +78,12 @@ class FramePayload(BaseModel):
 
 
 class ShotSequencePayload(BaseModel):
-    shot_sequence: List[List[Landmark]]
+    shot_sequence: list[list[Landmark]]
     shot_type: str = "cover_drive"
     is_right_handed: bool = True
     # Optional MediaPipe world landmarks (metric 3D). When present, backend angles
     # are computed from these instead of the 2D image projection.
-    world_landmarks: Optional[List[List[Landmark]]] = None
+    world_landmarks: list[list[Landmark]] | None = None
 
     @field_validator("shot_sequence")
     @classmethod
@@ -123,7 +122,7 @@ class ShotAnalysisResponse(BaseModel):
     build_calibration: float = 0.0
 
 
-def _frame_to_dicts(frame: List[Landmark]) -> List[dict]:
+def _frame_to_dicts(frame: list[Landmark]) -> list[dict]:
     """Existing angle utilities expect landmark dicts, not pydantic models."""
     return [lm.model_dump() for lm in frame]
 
@@ -193,7 +192,7 @@ async def analyze_shot_sequence(payload: ShotSequencePayload):
 
 
 @app.post("/api/batch-analyze")
-async def batch_analyze(payloads: List[FramePayload]):
+async def batch_analyze(payloads: list[FramePayload]):
     """Analyze multiple frames in batch."""
     try:
         results = []
@@ -223,7 +222,7 @@ async def list_shots():
 
 
 @app.post("/api/track-ball")
-async def track_ball(video: UploadFile = File(...)):
+async def track_ball(video: UploadFile = File(...)):  # noqa: B008 — FastAPI dependency-injection idiom
     """
     Process an uploaded video to track the ball trajectory using YOLO + PCHIP.
 
@@ -244,7 +243,7 @@ async def track_ball(video: UploadFile = File(...)):
     temp_path = f"/tmp/{uuid.uuid4()}.mp4"
     try:
         size = 0
-        with open(temp_path, "wb") as buffer:
+        with open(temp_path, "wb") as buffer:  # noqa: ASYNC230 — bounded chunked write, gated endpoint
             while True:
                 chunk = await video.read(1024 * 1024)
                 if not chunk:
@@ -272,7 +271,7 @@ async def track_ball(video: UploadFile = File(...)):
 async def get_ideal_model(shot_type: str = "cover_drive"):
     """Get the ideal model reference data for a specific shot."""
     try:
-        from geo import get_ideal_angle_sequence, ANGLE_THRESHOLDS
+        from geo import ANGLE_THRESHOLDS, get_ideal_angle_sequence
         return {
             "shot_type": shot_type,
             "ideal_sequence": get_ideal_angle_sequence(shot_type),

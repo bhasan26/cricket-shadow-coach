@@ -12,7 +12,7 @@ import numpy as np
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from geo import get_ideal_angle_sequence  # noqa: E402
+from geo import get_ideal_angle_sequence
 
 ANGLE_KEYS = ["left_elbow", "right_elbow", "left_knee", "right_knee"]
 # Spine tilt is part of the recorded references and is what the shot-identity

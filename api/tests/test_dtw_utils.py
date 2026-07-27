@@ -16,7 +16,7 @@ def test_length_doubled_within_5_points():
 
 
 def test_empty_input_returns_zero_score():
-    dist, score = calculate_dtw_distance([], [1, 2, 3])
+    _, score = calculate_dtw_distance([], [1, 2, 3])
     assert score == 0.0
 
 

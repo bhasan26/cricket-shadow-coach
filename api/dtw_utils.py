@@ -5,9 +5,9 @@ DTW is used to match two time series of different speeds while accounting
 for natural variations in execution speed during cricket batting.
 """
 
+import numpy as np
 from fastdtw import fastdtw
 from scipy.spatial.distance import euclidean
-import numpy as np
 
 
 def calculate_dtw_distance(user_sequence, ideal_sequence):
@@ -34,7 +34,7 @@ def calculate_dtw_distance(user_sequence, ideal_sequence):
     try:
         distance, path = fastdtw(user_array, ideal_array, dist=euclidean)
         return distance, dtw_score(distance, path)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 — third-party; degrade, don't 500
         print(f"DTW calculation error: {e}")
         return float('inf'), 0.0
 
@@ -142,7 +142,7 @@ def tolerance_score(user_sequence, ref_mean, ref_std, band=SAKOE_CHIBA_BAND,
                 np.array(ref_mean, dtype=np.float32).reshape(-1, 1),
                 dist=euclidean,
             )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — third-party; degrade, don't 500
             print(f"DTW calculation error: {e}")
             return 0.0
     if not path:

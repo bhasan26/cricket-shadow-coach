@@ -4,12 +4,12 @@ import pytest
 
 from angle_utils import (
     calculate_angle,
+    channel_values,
+    extract_shot_angles,
     get_head_tilt,
     get_left_elbow_angle,
-    extract_shot_angles,
-    smooth_sequence,
     resample_channel,
-    channel_values,
+    smooth_sequence,
 )
 
 

@@ -24,8 +24,8 @@ import sys
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from shot_evaluator import evaluate_shot, identify_shot  # noqa: E402
-from eval import synthetic  # noqa: E402
+from eval import synthetic
+from shot_evaluator import evaluate_shot, identify_shot
 
 SHOTS = ["cover_drive", "straight_drive", "pull_shot", "defensive_block", "flick_shot"]
 
@@ -141,7 +141,7 @@ def run_bowling():
         measured = result["angle_scores"]["bowling_arm_extension"]
         legal = result["is_good_shot"]
         ok = abs(measured - true_ext) <= BOWLING_TOLERANCE_DEG and legal == (true_ext <= 15.0)
-        print(f"{label:<28}{true_ext:>6.0f}{measured:>10.1f}{str(legal):>8}  "
+        print(f"{label:<28}{true_ext:>6.0f}{measured:>10.1f}{legal!s:>8}  "
               f"{'PASS' if ok else 'FAIL'}")
         if not ok:
             failures += 1

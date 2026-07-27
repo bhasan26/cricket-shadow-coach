@@ -23,7 +23,7 @@ import sys
 # Make api/ modules importable when run from the repo root.
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 
-from angle_utils import ANGLE_KEYS, extract_shot_angles, smooth_sequence  # noqa: E402
+from angle_utils import ANGLE_KEYS, extract_shot_angles, smooth_sequence
 
 REFERENCES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "references")
 TAKE_FRAMES = 32

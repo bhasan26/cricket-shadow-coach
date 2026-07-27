@@ -203,7 +203,7 @@ def augment(seq, label, class_names, rng):
 # ─── MODEL ───────────────────────────────────────────────────────────────────
 
 def build_model(n_classes):
-    import torch.nn as nn
+    from torch import nn
 
     # Small 1D temporal CNN over (batch, 99, 48). Exported size well under 2 MB.
     return nn.Sequential(
@@ -229,7 +229,7 @@ def main():
     args = parser.parse_args()
 
     import torch
-    import torch.nn as nn
+    from torch import nn
 
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)

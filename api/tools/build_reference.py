@@ -20,7 +20,7 @@ import numpy as np
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 
-from angle_utils import ANGLE_KEYS  # noqa: E402
+from angle_utils import ANGLE_KEYS
 
 REFERENCES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "references")
 # Never let a tolerance band collapse below measurement noise (~2° after smoothing).

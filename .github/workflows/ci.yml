@@ -35,7 +35,13 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pytest httpx ruff
+          # ruff is PINNED on purpose. Unpinned, a release that expands the
+          # default rule set turns the repo red with no code change — which is
+          # exactly what happened when 0.16 landed and enforced I/UP/B/BLE/RUF
+          # rules that were not previously checked. Bump this deliberately.
+          # httpx2 is starlette's non-deprecated TestClient backend; httpx still
+          # works but warns.
+          pip install pytest httpx2 "ruff==0.16.0"
       - name: Lint (ruff)
         run: python -m ruff check .
       - name: Run tests

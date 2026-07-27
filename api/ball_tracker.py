@@ -1,8 +1,10 @@
+import os
+
 import cv2
 import numpy as np
 from scipy.interpolate import PchipInterpolator
 from ultralytics import YOLO
-import os
+
 
 class CricketBiomechanicalAnalyzer:
     def __init__(self, yolo_model_path: str = "yolov8n.pt"):

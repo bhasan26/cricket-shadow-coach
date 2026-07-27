@@ -8,7 +8,7 @@ from dtw_utils import (
     tolerance_score,
 )
 from eval import synthetic
-from geo import get_ideal_angle_sequence, get_reference_tolerance, IDEAL_COVER_DRIVE
+from geo import IDEAL_COVER_DRIVE, get_ideal_angle_sequence, get_reference_tolerance
 from shot_evaluator import (
     MAX_BUILD_CALIBRATION,
     build_calibration_offset,
@@ -17,7 +17,6 @@ from shot_evaluator import (
     score_phases,
     segment_phases,
 )
-
 
 # ── geo.py loading ─────────────────────────────────────────────────────────
 
