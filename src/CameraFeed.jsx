@@ -220,7 +220,12 @@ function CameraFeed() {
       // EXPERIMENTAL shot verification (in-browser ONNX classifier, 62.6%
       // test accuracy — below the 80% default-on gate, so opt-in only via
       // ?experimental=1). Second opinion in the feedback, never the score.
-      if (isExperimentalEnabled() && selectedShot !== 'bowling_action' && worldSequence) {
+      // Skipped when the backend already identified the shot from the recorded
+      // references (result.shot_match): that check is far more reliable, and two
+      // different guesses in one feedback line is worse than none.
+      const backendIdentified = result?.shot_match?.confident;
+      if (!backendIdentified && isExperimentalEnabled()
+          && selectedShot !== 'bowling_action' && worldSequence) {
         const guess = await classifyShot(worldSequence);
         if (guess && guess.confidence > 0.7 && guess.shotType !== selectedShot) {
           const guessName = availableShots[guess.shotType]?.name || guess.shotType;

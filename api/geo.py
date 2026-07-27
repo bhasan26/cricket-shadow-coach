@@ -468,6 +468,13 @@ def get_reference_tolerance(shot_type="cover_drive"):
     return ref["tolerance"] if ref else None
 
 
+def get_recorded_shot_types():
+    """Shot types that have a recorded reference — the candidates a motion can
+    be matched against when checking whether the user played the shot they
+    selected. Sorted so results are deterministic."""
+    return sorted(RECORDED_REFERENCES)
+
+
 def get_shot_list():
     """Get list of available shots with metadata."""
     return {

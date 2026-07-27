@@ -19,10 +19,16 @@ from angle_utils import (
     smooth_sequence,
     resample_channel,
 )
-from dtw_utils import calculate_dtw_distance, tolerance_score
+from dtw_utils import (
+    calculate_dtw_distance,
+    constrained_dtw_path,
+    shape_match_score,
+    tolerance_score,
+)
 from geo import (
     get_ideal_angle_sequence,
     get_reference_tolerance,
+    get_recorded_shot_types,
     get_shot_name,
     get_feedback_for_angle,
     get_position_feedback,
@@ -32,8 +38,35 @@ from geo import (
 DTW_KEYS = ["left_elbow", "right_elbow", "left_knee", "right_knee"]
 # Channels that get smoothed across the sequence.
 SMOOTH_KEYS = DTW_KEYS + ["spine_tilt"]
+# Channels used to decide WHICH shot a motion resembles. Spine tilt separates
+# the shots strongly (a pull rotates the torso where a defensive block stays
+# upright) but its absolute value is too camera-dependent to grade against, so
+# it identifies the shot without contributing to the score.
+MATCH_KEYS = DTW_KEYS + ["spine_tilt"]
 # Number of points every channel is resampled to before DTW.
 RESAMPLE_LEN = 50
+
+# A shot-identification result only overrides the user's selection when the best
+# match beats the runner-up by this margin AND fits well enough in absolute
+# terms. Tuned in api/eval/run_eval.py: correct reps are never confidently
+# mislabelled at these thresholds, across noise, tempo and personal offset.
+MIN_MATCH_MARGIN = 6.0
+MIN_MATCH_FIT = 50.0
+
+# Largest body-build correction applied to the user's angles (degrees). A player
+# whose joints all read ~20° off the broadcast references — different build,
+# camera height, or systematic tracker bias — otherwise loses ~27 points on a
+# correctly played shot. Beyond this cap the deviation is too large to be
+# anatomy and is graded as technique.
+#
+# 8° is where the trade-off sits: it recovers a 20°-offset rep from 73 to 92,
+# while a generic non-shot arm swing stays at 30. Raising it to 12 buys only 6
+# more points on the genuine rep but lifts that non-shot to 63 — forgiveness
+# that starts flattering motion which isn't a cricket shot at all.
+MAX_BUILD_CALIBRATION = 8.0
+# Ceiling applied when the motion confidently matches a different shot — a
+# well-executed pull shot is not a good cover drive, whatever its angles score.
+MISMATCH_SCORE_CAP = 45
 
 BOWLING_DISCLAIMER = (
     "Indicative screen only — a single 2D camera cannot match lab-grade 3D motion "
@@ -519,6 +552,97 @@ def score_phases(angle_sequence, ideal_seq, is_right_handed=True):
     return phase_scores
 
 
+def build_calibration_offset(user_channels, ideal_seq, keys=None):
+    """
+    The angle offset this player carries from body build, camera height and
+    systematic tracker bias — to be removed before grading technique.
+
+    Only the COMMON-MODE offset is returned: the median, across joints, of each
+    joint's median residual against the reference. That split is what makes the
+    correction safe. A player who is simply built differently reads offset on
+    every joint at once, so the median moves and the bias is removed. A genuine
+    fault — a front elbow consistently over-extended — moves one joint only, so
+    the median barely shifts and the fault still costs marks.
+
+    The recorded references are broadcast clips trimmed to the shot itself, with
+    no still stance to calibrate against (verified: 5-7° of motion from frame
+    one), so the offset is measured over the aligned swing rather than at rest.
+
+    Returns degrees, clamped to ±MAX_BUILD_CALIBRATION, or 0.0 when there isn't
+    enough tracked data to judge.
+    """
+    keys = keys or DTW_KEYS
+    per_joint = []
+    for key in keys:
+        user = user_channels.get(key)
+        ref = [f.get(key, 0) for f in ideal_seq]
+        if not user or not ref or max(user) <= 0:
+            continue
+        path = constrained_dtw_path(user, ref)
+        if not path:
+            continue
+        per_joint.append(float(np.median([user[i] - ref[j] for i, j in path])))
+
+    # Need most joints present, or "common mode" is just one joint's fault.
+    if len(per_joint) < 3:
+        return 0.0
+    offset = float(np.median(per_joint))
+    return float(np.clip(offset, -MAX_BUILD_CALIBRATION, MAX_BUILD_CALIBRATION))
+
+
+def identify_shot(angle_sequence, is_right_handed=True):
+    """
+    Which recorded reference does this motion most resemble?
+
+    Matching is on SHAPE only (each channel mean-removed before alignment), so
+    a player whose joint angles sit 20° off the broadcast references is still
+    identified correctly — see ``shape_match_score``. This answers "did you play
+    the shot you selected?", which the tolerance-band score cannot: before this
+    check, a perfect pull shot scored 98/100 against the cover-drive reference.
+
+    Returns ``{"best", "scores", "margin", "confident"}``, or ``None`` when the
+    motion carries too little shape information to judge.
+    """
+    candidates = get_recorded_shot_types()
+    if len(candidates) < 2:
+        return None
+
+    user = {
+        k: resample_channel([f.get(k) for f in angle_sequence], RESAMPLE_LEN)
+        for k in MATCH_KEYS
+    }
+
+    scores = {}
+    for shot in candidates:
+        ref_seq = get_ideal_angle_sequence(shot)
+        if not is_right_handed:
+            ref_seq = mirror_ideal(ref_seq)
+        channel_scores = [
+            s
+            for s in (
+                shape_match_score(user[k], [f.get(k, 0) for f in ref_seq])
+                for k in MATCH_KEYS
+            )
+            if s is not None
+        ]
+        # Need agreement across several joints — one channel can match by chance.
+        if len(channel_scores) >= 2:
+            scores[shot] = float(np.mean(channel_scores))
+
+    if len(scores) < 2:
+        return None
+
+    ranked = sorted(scores.items(), key=lambda kv: kv[1], reverse=True)
+    best, best_score = ranked[0]
+    margin = best_score - ranked[1][1]
+    return {
+        "best": best,
+        "scores": scores,
+        "margin": float(margin),
+        "confident": margin >= MIN_MATCH_MARGIN and best_score >= MIN_MATCH_FIT,
+    }
+
+
 def calculate_sequence_score(angle_sequence, shot_type="cover_drive", is_right_handed=True):
     """Calculate score for an entire shot sequence."""
     if not angle_sequence:
@@ -562,10 +686,18 @@ def calculate_sequence_score(angle_sequence, shot_type="cover_drive", is_right_h
     # With a recorded reference, each channel is scored against per-frame
     # tolerance bands (1 std = full marks → 0 at 3 std). Hardcoded fallback
     # references have no bands, so plain length-normalized DTW applies.
+    user_channels = {
+        key: resample_channel([f.get(key) for f in angle_sequence], RESAMPLE_LEN)
+        for key in DTW_KEYS
+    }
+    # Grade technique, not anatomy: remove the offset this player carries on
+    # every joint at once before comparing against the reference.
+    calibration = build_calibration_offset(user_channels, ideal_seq)
+
     angle_scores = {}
     total_score = 0.0
     for key in DTW_KEYS:
-        user_resampled = resample_channel([f.get(key) for f in angle_sequence], RESAMPLE_LEN)
+        user_resampled = [v - calibration if v > 0 else v for v in user_channels[key]]
         if tolerance and tolerance.get(key):
             ref_mean = [f.get(key, 0) for f in ideal_seq]
             score = tolerance_score(user_resampled, ref_mean, tolerance[key])
@@ -579,6 +711,10 @@ def calculate_sequence_score(angle_sequence, shot_type="cover_drive", is_right_h
     # ── PHASE-AWARE SCORES (which part of the shot was off) ────────
     angle_scores.update(score_phases(angle_sequence, ideal_seq, is_right_handed))
 
+    # ── DID THEY PLAY THE SHOT THEY SELECTED? ──────────────────────
+    match = identify_shot(angle_sequence, is_right_handed)
+    is_mismatch = bool(match and match["confident"] and match["best"] != shot_type)
+
     # ── BLEND RAW SCORE WITH MOTION QUALITY ────────────────────────
     stance_score = 100 if is_standing else 30
     motion_weight = min(100, motion_score)
@@ -589,10 +725,18 @@ def calculate_sequence_score(angle_sequence, shot_type="cover_drive", is_right_h
     # don't let free motion/stance points inflate a non-matching swing.
     if raw_score < 35:
         final_score = min(final_score, 30)
+    # A clean rep of a DIFFERENT shot is not a good rep of this one.
+    if is_mismatch:
+        final_score = min(final_score, MISMATCH_SCORE_CAP)
     final_score = max(0, min(100, final_score))
 
     # ── GENERATE FEEDBACK ──────────────────────────────────────────
     feedback_list = []
+    if is_mismatch:
+        feedback_list.append(
+            f"That looked more like a {get_shot_name(match['best'])} than a {shot_name} — "
+            f"check you selected the drill you meant to play."
+        )
     batting_feedback = evaluate_batting_biomechanics(angle_sequence, is_right_handed)
     feedback_list.extend(batting_feedback)
 
@@ -624,7 +768,7 @@ def calculate_sequence_score(angle_sequence, shot_type="cover_drive", is_right_h
     if pos_feedback:
         feedback_list.append(pos_feedback)
 
-    return {
+    result = {
         "score": int(round(final_score)),
         "shot_type": shot_type,
         "shot_name": shot_name,
@@ -632,7 +776,19 @@ def calculate_sequence_score(angle_sequence, shot_type="cover_drive", is_right_h
         "angle_scores": angle_scores,
         "is_good_shot": final_score >= 70,
         "tracking_quality": quality,
+        # Degrees of body-build offset removed before grading (0 when none was
+        # detected). Surfaced so a large correction is visible, not silent.
+        "build_calibration": round(calibration, 1),
     }
+    if match:
+        result["shot_match"] = {
+            "best": match["best"],
+            "best_name": get_shot_name(match["best"]),
+            "margin": round(match["margin"], 1),
+            "confident": match["confident"],
+            "matches_selection": match["best"] == shot_type,
+        }
+    return result
 
 
 def evaluate_shot(current_angles, accumulated_sequence=None, shot_type="cover_drive", is_right_handed=True):

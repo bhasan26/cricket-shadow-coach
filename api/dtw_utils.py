@@ -58,36 +58,137 @@ def dtw_score(distance, path, k=DTW_SCORE_K):
     return float(max(0.0, 100.0 - per_step * k))
 
 
-def tolerance_score(user_sequence, ref_mean, ref_std):
+# ─── CONSTRAINED ALIGNMENT ──────────────────────────────────────────────────
+# Unconstrained DTW can warp a series arbitrarily to match a template, so any
+# swing eventually "fits" any reference and timing stops mattering. A
+# Sakoe-Chiba band restricts each user frame to align within ±BAND reference
+# frames of the diagonal, which preserves tempo as a real signal. Sequences are
+# already resampled to a fixed length before scoring, so the band only limits
+# LOCAL warping, not overall recording duration.
+SAKOE_CHIBA_BAND = 5
+
+# Reference tolerance bands are built from broadcast footage of different
+# players at different camera angles, so their per-frame std reaches 40°+ —
+# wider than the difference BETWEEN shots, which made every shot score ~95
+# against every reference. Capping the band keeps genuine variation tolerated
+# while restoring discrimination (see api/eval/run_eval.py cross-shot cases).
+MAX_TOLERANCE_STD = 8.0
+
+# Below this per-channel std the user's angle series is essentially flat
+# (untracked joint or no movement), so its shape carries no information.
+MIN_SHAPE_VARIATION = 2.0
+
+
+def constrained_dtw_path(user_sequence, ref_sequence, band=SAKOE_CHIBA_BAND):
+    """
+    DTW alignment path under a Sakoe-Chiba band, for 1D angle series of any
+    (possibly different) lengths. The band is measured around the diagonal that
+    maps the user series onto the reference, so it stays meaningful when the two
+    have different lengths.
+
+    Returns a list of (user_index, ref_index) pairs, or [] when no path exists.
+    """
+    u = np.asarray(user_sequence, dtype=np.float64)
+    r = np.asarray(ref_sequence, dtype=np.float64)
+    n, k = len(u), len(r)
+    if n < 2 or k < 2:
+        return []
+    band = max(2, band)
+
+    cost = np.full((n + 1, k + 1), np.inf)
+    cost[0, 0] = 0.0
+    for i in range(1, n + 1):
+        centre = round(i * k / n)
+        for j in range(max(1, centre - band), min(k, centre + band) + 1):
+            best = min(cost[i - 1, j], cost[i, j - 1], cost[i - 1, j - 1])
+            cost[i, j] = abs(u[i - 1] - r[j - 1]) + best
+    if not np.isfinite(cost[n, k]):
+        return []
+
+    path = []
+    i, j = n, k
+    while i > 0 and j > 0:
+        path.append((i - 1, j - 1))
+        step = min(cost[i - 1, j], cost[i, j - 1], cost[i - 1, j - 1])
+        if step == cost[i - 1, j - 1]:
+            i, j = i - 1, j - 1
+        elif step == cost[i - 1, j]:
+            i -= 1
+        else:
+            j -= 1
+    return path[::-1]
+
+
+def tolerance_score(user_sequence, ref_mean, ref_std, band=SAKOE_CHIBA_BAND,
+                    std_cap=MAX_TOLERANCE_STD):
     """
     Score a user angle series against a recorded reference with per-frame
     tolerance bands (from api/tools/build_reference.py).
 
-    The user series is DTW-aligned to the reference mean; each matched step is
-    scored by its deviation in units of that frame's std-dev: within 1 std =
-    full marks, scaling linearly to 0 at 3 std. Returns 0-100.
+    The user series is DTW-aligned to the reference mean under a Sakoe-Chiba
+    band; each matched step is scored by its deviation in units of that frame's
+    std-dev (capped at ``std_cap``): within 1 std = full marks, scaling linearly
+    to 0 at 3 std. Returns 0-100.
     """
     if not user_sequence or not ref_mean or len(ref_mean) != len(ref_std):
         return 0.0
-    user_array = np.array(user_sequence, dtype=np.float32).reshape(-1, 1)
-    ref_array = np.array(ref_mean, dtype=np.float32).reshape(-1, 1)
-    try:
-        _, path = fastdtw(user_array, ref_array, dist=euclidean)
-    except Exception as e:
-        print(f"DTW calculation error: {e}")
-        return 0.0
+    path = constrained_dtw_path(user_sequence, ref_mean, band)
+    if not path:
+        # Degenerate lengths — fall back to unconstrained alignment rather than
+        # reporting a zero the user hasn't earned.
+        try:
+            _, path = fastdtw(
+                np.array(user_sequence, dtype=np.float32).reshape(-1, 1),
+                np.array(ref_mean, dtype=np.float32).reshape(-1, 1),
+                dist=euclidean,
+            )
+        except Exception as e:
+            print(f"DTW calculation error: {e}")
+            return 0.0
     if not path:
         return 0.0
 
     total = 0.0
     for i, j in path:
-        std = max(float(ref_std[j]), 1e-6)
+        std = float(ref_std[j])
+        if std_cap:
+            std = min(std, float(std_cap))
+        std = max(std, 1e-6)
         z = abs(float(user_sequence[i]) - float(ref_mean[j])) / std
         if z <= 1.0:
             total += 1.0
         elif z < 3.0:
             total += (3.0 - z) / 2.0
     return float(100.0 * total / len(path))
+
+
+def shape_match_score(user_sequence, ref_mean, band=SAKOE_CHIBA_BAND, k=DTW_SCORE_K):
+    """
+    How closely the SHAPE of a user angle series follows a reference, ignoring
+    any constant offset — 0-100.
+
+    Absolute joint angles carry a large per-player bias (build, stance, camera),
+    which swamps the difference between shots: at a 25° personal offset,
+    absolute matching picks the right shot only 20% of the time. Mean-removing
+    each series first makes the comparison depend on the motion pattern alone,
+    which identifies the shot correctly across noise, tempo and offset.
+
+    Returns ``None`` when the user series is too flat for its shape to mean
+    anything (untracked joint, or no movement).
+    """
+    if not user_sequence or not ref_mean:
+        return None
+    u = np.asarray(user_sequence, dtype=np.float64)
+    r = np.asarray(ref_mean, dtype=np.float64)
+    if u.std() < MIN_SHAPE_VARIATION or r.std() < MIN_SHAPE_VARIATION:
+        return None
+    u = u - u.mean()
+    r = r - r.mean()
+    path = constrained_dtw_path(u, r, band)
+    if not path:
+        return None
+    deviation = float(np.mean([abs(u[i] - r[j]) for i, j in path]))
+    return float(max(0.0, 100.0 - deviation * k))
 
 
 def calculate_angle_deviation(user_value, ideal_value, tolerance=5.0):

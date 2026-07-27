@@ -115,6 +115,12 @@ class ShotAnalysisResponse(BaseModel):
     # "normal" | "low" — low when the bowling measurement window was too short
     # or joints were poorly tracked. Empty for batting drills.
     confidence: str = ""
+    # Which recorded reference the motion actually resembled:
+    # {"best", "best_name", "margin", "confident", "matches_selection"}.
+    # Absent for bowling actions, which have no reference to match against.
+    shot_match: dict | None = None
+    # Degrees of body-build/camera offset removed before grading technique.
+    build_calibration: float = 0.0
 
 
 def _frame_to_dicts(frame: List[Landmark]) -> List[dict]:
@@ -178,6 +184,8 @@ async def analyze_shot_sequence(payload: ShotSequencePayload):
             disclaimer=result.get("disclaimer", ""),
             camera_angle_warning=result.get("camera_angle_warning", ""),
             confidence=result.get("confidence", ""),
+            shot_match=result.get("shot_match"),
+            build_calibration=result.get("build_calibration", 0.0),
         )
     except Exception:
         logger.exception("analyze_shot failed")

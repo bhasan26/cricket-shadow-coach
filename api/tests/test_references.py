@@ -1,9 +1,22 @@
+import itertools
 import json
 
 import geo
-from dtw_utils import tolerance_score
+from dtw_utils import (
+    constrained_dtw_path,
+    shape_match_score,
+    tolerance_score,
+)
+from eval import synthetic
 from geo import get_ideal_angle_sequence, get_reference_tolerance, IDEAL_COVER_DRIVE
-from shot_evaluator import score_phases, segment_phases
+from shot_evaluator import (
+    MAX_BUILD_CALIBRATION,
+    build_calibration_offset,
+    evaluate_shot,
+    identify_shot,
+    score_phases,
+    segment_phases,
+)
 
 
 # ── geo.py loading ─────────────────────────────────────────────────────────
@@ -106,3 +119,119 @@ def test_score_phases_high_for_matching_sequences():
     for key, val in scores.items():
         assert key.endswith("_phase")
         assert val >= 90.0
+
+
+# ── constrained alignment & shot identification ────────────────────────────
+
+def test_constrained_dtw_path_covers_both_series():
+    path = constrained_dtw_path(list(range(50)), list(range(32)))
+    assert path
+    assert path[0] == (0, 0)
+    assert path[-1] == (49, 31)
+    # Monotonic in both indices — a valid warping path.
+    assert all(b[0] >= a[0] and b[1] >= a[1] for a, b in itertools.pairwise(path))
+
+
+def test_band_limits_warping():
+    # A spike late in the user series cannot be warped onto an early reference
+    # spike once the band is tight, so the score drops.
+    ref = [100.0] * 10 + [160.0] * 10 + [100.0] * 30
+    user = [100.0] * 30 + [160.0] * 10 + [100.0] * 10  # same spike, much later
+    std = [4.0] * len(ref)
+    loose = tolerance_score(user, ref, std, band=45)
+    tight = tolerance_score(user, ref, std, band=3)
+    assert loose > tight
+
+
+def test_std_cap_prevents_unbounded_tolerance():
+    # A 30° std band would otherwise give full marks to a 25° deviation.
+    mean = [150.0] * 20
+    uncapped = tolerance_score([175.0] * 20, mean, [30.0] * 20, std_cap=None)
+    capped = tolerance_score([175.0] * 20, mean, [30.0] * 20)
+    assert uncapped == 100.0
+    assert capped < 20.0
+
+
+def test_shape_match_ignores_constant_offset():
+    ref = [100.0 + 30.0 * (i % 10) / 9.0 for i in range(40)]
+    shifted = [v + 25.0 for v in ref]
+    assert shape_match_score(shifted, ref) > 95.0
+
+
+def test_shape_match_none_for_flat_series():
+    assert shape_match_score([150.0] * 40, [150.0] * 40) is None
+
+
+def test_identify_shot_names_the_shot_played():
+    # A clean replay of each reference must identify as that shot, not another.
+    for shot in ("cover_drive", "straight_drive", "pull_shot",
+                 "defensive_block", "flick_shot"):
+        seq = synthetic.perfect_replay(shot)
+        match = identify_shot(seq)
+        assert match is not None, shot
+        assert match["best"] == shot, f"{shot} identified as {match['best']}"
+        assert match["confident"], shot
+
+
+def test_wrong_shot_selection_is_penalised():
+    # Playing a clean pull shot while "cover drive" is selected must not score
+    # like a good cover drive — before shot identification this returned 98.
+    seq = synthetic.perfect_replay("pull_shot")
+    result = evaluate_shot(None, seq, shot_type="cover_drive")
+    assert result["score"] <= 50
+    assert result["shot_match"]["best"] == "pull_shot"
+    assert result["shot_match"]["matches_selection"] is False
+    assert "Pull Shot" in result["feedback"]
+
+
+def test_correct_shot_is_not_penalised():
+    seq = synthetic.perfect_replay("cover_drive")
+    result = evaluate_shot(None, seq, shot_type="cover_drive")
+    assert result["score"] >= 90
+    assert result["shot_match"]["matches_selection"] is True
+
+
+# ── body-build calibration ─────────────────────────────────────────────────
+
+def _offset_replay(shot, offset=0.0, fault_key=None, fault_deg=0.0):
+    seq = synthetic.perfect_replay(shot)
+    for f in seq:
+        for k in ("left_elbow", "right_elbow", "left_knee", "right_knee"):
+            f[k] = f[k] + offset
+        if fault_key:
+            f[fault_key] = f[fault_key] + fault_deg
+    return seq
+
+
+def test_build_offset_is_forgiven():
+    # Same shot, played correctly, by someone whose joints all read 20° off the
+    # broadcast references. Without calibration this lost ~27 points.
+    seq = _offset_replay("cover_drive", offset=20.0)
+    result = evaluate_shot(None, seq, shot_type="cover_drive")
+    assert result["score"] >= 90
+    assert result["build_calibration"] > 5.0
+
+
+def test_single_joint_fault_is_not_calibrated_away():
+    # One joint consistently wrong is technique, not anatomy: the common-mode
+    # correction must stay near zero so the fault still costs marks.
+    clean = evaluate_shot(None, _offset_replay("cover_drive"), shot_type="cover_drive")
+    faulty_seq = _offset_replay("cover_drive", fault_key="left_elbow", fault_deg=30.0)
+    faulty = evaluate_shot(None, faulty_seq, shot_type="cover_drive")
+    assert abs(faulty["build_calibration"]) < 3.0
+    assert faulty["score"] < clean["score"]
+    assert faulty["angle_scores"]["left_elbow"] < clean["angle_scores"]["left_elbow"]
+
+
+def test_calibration_is_clamped():
+    # A 40° offset is beyond anatomy — only MAX_BUILD_CALIBRATION is removed.
+    seq = _offset_replay("cover_drive", offset=40.0)
+    result = evaluate_shot(None, seq, shot_type="cover_drive")
+    assert abs(result["build_calibration"]) <= MAX_BUILD_CALIBRATION
+
+
+def test_calibration_needs_most_joints():
+    # Too few tracked channels to separate common mode from a single fault.
+    channels = {"left_elbow": [150.0] * 50}
+    ideal = get_ideal_angle_sequence("cover_drive")
+    assert build_calibration_offset(channels, ideal) == 0.0

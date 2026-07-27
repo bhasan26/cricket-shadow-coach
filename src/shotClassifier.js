@@ -17,7 +17,6 @@ const SEQ_LEN = 48;
 const N_LANDMARKS = 33;
 const N_FEATURES = N_LANDMARKS * 3;
 const MODEL_URL = '/models/shot_classifier.onnx';
-const ORT_VERSION = '1.23.2';
 
 // Model class order (alphabetical training folders) -> app shot types.
 const CLASS_NAMES = ['cover', 'defense', 'flick', 'pull', 'straight'];
@@ -120,8 +119,14 @@ const getSession = () => {
     sessionPromise = (async () => {
       const ort = await import('onnxruntime-web');
       // Load the WASM backend from the CDN (same pattern as MediaPipe assets)
-      // so the app bundle stays small.
-      ort.env.wasm.wasmPaths = `https://cdn.jsdelivr.net/npm/onnxruntime-web@${ORT_VERSION}/dist/`;
+      // so the app bundle stays small. The version MUST match the bundled JS
+      // glue exactly — ORT refuses to initialize a mismatched wasm binary — so
+      // read it off the runtime instead of hardcoding it, which silently rots
+      // every time onnxruntime-web is upgraded.
+      const version = ort.env.versions?.web;
+      if (version) {
+        ort.env.wasm.wasmPaths = `https://cdn.jsdelivr.net/npm/onnxruntime-web@${version}/dist/`;
+      }
       const session = await ort.InferenceSession.create(MODEL_URL);
       return { ort, session };
     })();

@@ -15,6 +15,9 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from geo import get_ideal_angle_sequence  # noqa: E402
 
 ANGLE_KEYS = ["left_elbow", "right_elbow", "left_knee", "right_knee"]
+# Spine tilt is part of the recorded references and is what the shot-identity
+# check leans on most, so replays must reproduce it rather than a constant.
+REPLAY_KEYS = ANGLE_KEYS + ["spine_tilt"]
 _rng = np.random.default_rng(42)
 
 
@@ -42,12 +45,28 @@ def _frame(le, re, lk, rk, spine=12.0, head=1.0):
 def perfect_replay(shot_type="cover_drive", n_frames=40):
     """Upsample the ideal keyframes into a realistic-length clean replay."""
     ideal = get_ideal_angle_sequence(shot_type)
-    channels = {k: _resample([f.get(k, 0) for f in ideal], n_frames) for k in ANGLE_KEYS}
+    channels = {k: _resample([f.get(k, 0) for f in ideal], n_frames) for k in REPLAY_KEYS}
     return [
         _frame(channels["left_elbow"][i], channels["right_elbow"][i],
-               channels["left_knee"][i], channels["right_knee"][i])
+               channels["left_knee"][i], channels["right_knee"][i],
+               spine=channels["spine_tilt"][i])
         for i in range(n_frames)
     ]
+
+
+def player_replay(shot_type="cover_drive", noise=5.0, stretch=1.0, offset=0.0,
+                  n_frames=40):
+    """
+    A realistic amateur rep of ``shot_type``: the reference motion plus tracking
+    noise, a different tempo, and a constant per-player angle offset (build,
+    stance and camera height all shift absolute joint angles). Used to check the
+    shot-identity call survives the variation a real user brings.
+    """
+    base = perfect_replay(shot_type, max(8, int(n_frames * stretch)))
+    for f in base:
+        for k in REPLAY_KEYS:
+            f[k] = float(f[k] + offset + _rng.normal(0.0, noise))
+    return base
 
 
 def time_stretched(shot_type="cover_drive", factor=1.5):

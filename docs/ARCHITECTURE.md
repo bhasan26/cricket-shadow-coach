@@ -41,7 +41,62 @@ std as a tolerance band: within 1 std = full marks, scaling to 0 at 3 std
 (`dtw_utils.tolerance_score`). DTW scores are normalized by warping-path
 length so recording duration doesn't affect the score.
 
-### 4. Phase-aware scoring
+Two constraints keep those bands meaningful. The references come from
+broadcast footage of different players at different camera angles, so their
+per-frame std reaches 40° — wider than the difference *between* shots. It is
+capped at `MAX_TOLERANCE_STD` (8°). Alignment is also restricted to a
+Sakoe-Chiba band (`dtw_utils.constrained_dtw_path`, ±5 frames of the
+diagonal): unconstrained DTW can warp any swing onto any template, which
+erases tempo as a signal. Sequences are resampled to a fixed length first, so
+the band limits only *local* warping, not overall recording duration.
+
+### 4. Shot identification (did you play the shot you selected?)
+
+`shot_evaluator.identify_shot` matches the motion against **all five** recorded
+references and reports the best fit. Matching is on shape only — each channel
+is mean-removed before alignment (`dtw_utils.shape_match_score`) — because the
+absolute joint angles of a given player carry a large constant offset from
+build, stance and camera height. That offset swamps the between-shot
+difference: at a 25° offset, absolute matching picks the right shot 20% of the
+time where shape matching stays at 100%.
+
+When the best match beats the runner-up by `MIN_MATCH_MARGIN` and fits at least
+`MIN_MATCH_FIT`, and it is *not* the shot the user selected, the score is capped
+at `MISMATCH_SCORE_CAP` (45) and the feedback names what it looked like instead.
+Below those thresholds the check stays silent rather than guessing. Results are
+returned as `shot_match` on the API response.
+
+Without this check the scorer could not tell the shots apart at all: a clean
+pull shot graded against the cover-drive reference scored 98/100. The
+`wrong_shot` cases and the identification sweep in `api/eval/run_eval.py` gate
+this in CI.
+
+### 5. Body-build calibration
+
+`shot_evaluator.build_calibration_offset` removes the angle offset a player
+carries from build, camera height and systematic tracker bias, so the score
+grades technique rather than anatomy. Only the **common-mode** offset is
+removed — the median, across joints, of each joint's median residual against
+the reference.
+
+That split is what makes it safe. Being built differently shifts every joint at
+once, so the median moves and the bias is removed (a correct rep at a 20°
+offset scores 92 instead of 73). A genuine fault — one elbow consistently
+over-extended — shifts a single joint, so the median barely moves (< 0.5°
+applied) and the fault still costs marks. The correction is reported as
+`build_calibration` on the response, so a large one is visible rather than
+silent.
+
+`MAX_BUILD_CALIBRATION` is 8° because that is where the trade-off sits: it
+recovers most of the offset penalty while a generic non-shot arm swing still
+scores 30. At 12° that same non-shot scores 63 — forgiveness wide enough to
+flatter motion that isn't a cricket shot.
+
+The references are broadcast clips trimmed to the shot with **no still stance**
+to calibrate against (verified: 5–7° of motion from frame one), which is why
+the offset is measured over the aligned swing rather than at rest.
+
+### 6. Phase-aware scoring
 
 `shot_evaluator.segment_phases` splits the front-elbow angle series into
 stance → backswing (flexing) → impact (peak extension ± window) →
@@ -49,7 +104,7 @@ follow-through, rule-based. Each phase is scored against the matching segment
 of the reference and returned as `backswing_phase` / `impact_phase` /
 `follow_through_phase` in `angle_scores`.
 
-### 5. Bowling legality (indicative only)
+### 7. Bowling legality (indicative only)
 
 Elbow extension is measured **only inside the ICC-style window**: from the
 frame the bowling upper arm passes horizontal to the release frame (wrist
@@ -58,7 +113,7 @@ apex). Verdicts report an *estimated* extension against the 15° guideline —
 3D capture). A `confidence: low` flag fires when the window has < 5 frames,
 could not be isolated, or tracking quality < 60%; the UI grays the score.
 
-### 6. Planned ML layer (`api/train_landmark_classifier.py`)
+### 8. Planned ML layer (`api/train_landmark_classifier.py`)
 
 A small 1D temporal CNN over normalized landmark sequences (48×99 input,
 < 2 MB as ONNX) for shot verification and a bowling second opinion, to run
