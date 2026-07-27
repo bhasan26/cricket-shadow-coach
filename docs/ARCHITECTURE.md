@@ -104,6 +104,17 @@ follow-through, rule-based. Each phase is scored against the matching segment
 of the reference and returned as `backswing_phase` / `impact_phase` /
 `follow_through_phase` in `angle_scores`.
 
+These also drive the coaching tip: `geo.get_phase_feedback` picks the tip for
+the phase that scored *worst*. It is appended directly after the headline
+because only the first three feedback items survive the join — anything ranked
+below the generic per-angle advice never reaches the user.
+
+Head cock is measured by `angle_utils.get_head_tilt` as the angle between the
+ear line and the player's own shoulder line, which cancels camera roll (a
+tilted phone rotates both together). It replaces a check that compared
+`head_alignment` — a normalized coordinate offset bounded to [-1, 1] — against
+a threshold of 3.0, and so could never fire.
+
 ### 7. Bowling legality (indicative only)
 
 Elbow extension is measured **only inside the ICC-style window**: from the

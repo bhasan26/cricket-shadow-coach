@@ -1,7 +1,10 @@
 import math
 
+import pytest
+
 from angle_utils import (
     calculate_angle,
+    get_head_tilt,
     get_left_elbow_angle,
     extract_shot_angles,
     smooth_sequence,
@@ -92,3 +95,46 @@ def test_resample_channel_insufficient_valid_points():
 def test_channel_values_filters_none_and_zero():
     seq = [{"left_elbow": 100}, {"left_elbow": None}, {"left_elbow": 0}, {"left_elbow": 120}]
     assert channel_values(seq, "left_elbow") == [100.0, 120.0]
+
+
+# ── head tilt ──────────────────────────────────────────────────────────────
+
+def _head_landmarks(head_cock_deg=0.0, camera_roll_deg=0.0):
+    """Ears and shoulders with the head cocked, then the whole image rolled."""
+    def rolled(x, y):
+        r = math.radians(camera_roll_deg)
+        return {"x": 0.5 + (x * math.cos(r) - y * math.sin(r)),
+                "y": 0.5 + (x * math.sin(r) + y * math.cos(r)),
+                "z": 0.0, "visibility": 0.9}
+
+    h = math.radians(head_cock_deg)
+    return _landmarks({
+        7: rolled(-0.05 * math.cos(h), -0.20 - 0.05 * math.sin(h)),   # left ear
+        8: rolled(0.05 * math.cos(h), -0.20 + 0.05 * math.sin(h)),    # right ear
+        11: rolled(-0.10, 0.0),
+        12: rolled(0.10, 0.0),
+    })
+
+
+def test_head_tilt_measures_cock_in_degrees():
+    assert get_head_tilt(_head_landmarks(0.0)) == pytest.approx(0.0, abs=0.5)
+    assert get_head_tilt(_head_landmarks(25.0)) == pytest.approx(25.0, abs=0.5)
+
+
+def test_head_tilt_ignores_camera_roll():
+    # A tilted phone rotates ears and shoulders together — that is not a head
+    # tilt, and measuring against the shoulder line cancels it.
+    for cock in (0.0, 25.0):
+        level = get_head_tilt(_head_landmarks(cock, camera_roll_deg=0.0))
+        rolled = get_head_tilt(_head_landmarks(cock, camera_roll_deg=30.0))
+        assert level == pytest.approx(rolled, abs=0.5)
+
+
+def test_head_tilt_none_when_ears_not_visible():
+    lms = _head_landmarks(25.0)
+    lms[7]["visibility"] = 0.1
+    assert get_head_tilt(lms) is None
+
+
+def test_extract_shot_angles_exposes_head_tilt():
+    assert "head_tilt" in extract_shot_angles(_head_landmarks(0.0))

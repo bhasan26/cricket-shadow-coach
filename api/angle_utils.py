@@ -126,13 +126,55 @@ def get_spine_tilt(landmarks, coords=None):
 
 def get_head_alignment(landmarks):
     """
-    Head alignment relative to the front shoulder (image space).
-    MediaPipe indices: 0=nose, 11=left_shoulder.
+    Head POSITION relative to the front shoulder (image space, normalized
+    coordinates, so bounded to [-1, 1]). MediaPipe indices: 0=nose,
+    11=left_shoulder.
+
+    This is an offset, not a tilt — use ``get_head_tilt`` for head cock. Kept
+    because the hardcoded ideal sequences in geo.py carry a ``head_alignment``
+    channel.
     """
     try:
         return float(landmarks[0]["y"] - landmarks[11]["y"])
     except (KeyError, IndexError, TypeError):
         return 0.0
+
+
+def get_head_tilt(landmarks):
+    """
+    Head cock in degrees: the angle between the ear-to-ear line (7=left_ear,
+    8=right_ear) and the shoulder line (11, 12). 0 means the eyes are level
+    with the shoulders.
+
+    Measuring against the SHOULDER line rather than the horizon is deliberate —
+    it cancels camera roll. A tilted phone rotates the ears and the shoulders
+    together, so it no longer reads as a head tilt; only the player actually
+    cocking their head relative to their own shoulders does.
+
+    Returns ``None`` when the ears or shoulders aren't reliably visible.
+    """
+    if not _all_visible(landmarks, (7, 8, 11, 12)):
+        return None
+    try:
+        ear = (
+            float(landmarks[8]["x"]) - float(landmarks[7]["x"]),
+            float(landmarks[8]["y"]) - float(landmarks[7]["y"]),
+        )
+        shoulder = (
+            float(landmarks[12]["x"]) - float(landmarks[11]["x"]),
+            float(landmarks[12]["y"]) - float(landmarks[11]["y"]),
+        )
+    except (KeyError, IndexError, TypeError):
+        return None
+    if np.hypot(*ear) < 1e-6 or np.hypot(*shoulder) < 1e-6:
+        return None
+
+    delta = np.degrees(
+        np.arctan2(ear[1], ear[0]) - np.arctan2(shoulder[1], shoulder[0])
+    )
+    # Wrap to [-180, 180], then report magnitude.
+    delta = (delta + 180.0) % 360.0 - 180.0
+    return float(abs(delta))
 
 
 def get_shoulder_width(landmarks):
@@ -195,6 +237,7 @@ def extract_shot_angles(landmarks, world_landmarks=None):
         "left_knee": get_left_knee_angle(landmarks, coords),
         "right_knee": get_right_knee_angle(landmarks, coords),
         "head_alignment": get_head_alignment(landmarks),
+        "head_tilt": get_head_tilt(landmarks),
         "spine_tilt": get_spine_tilt(landmarks, coords),
         "shoulder_width": get_shoulder_width(landmarks),
         "left_wrist_y": left_wrist_y,

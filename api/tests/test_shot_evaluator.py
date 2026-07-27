@@ -1,5 +1,8 @@
+from eval import synthetic
+from geo import get_phase_feedback
 from shot_evaluator import (
     calculate_motion_score,
+    evaluate_batting_biomechanics,
     evaluate_bowling_action,
     evaluate_shot,
 )
@@ -131,3 +134,55 @@ def test_bowling_delivery_phase_filtering_uses_raised_arm():
     result = evaluate_bowling_action(seq)
     assert "extension" in result["feedback"].lower()
     assert result["angle_scores"]["bowling_arm_extension"] >= 0
+
+
+# ── coaching feedback targeting ────────────────────────────────────────────
+
+def test_phase_feedback_targets_the_worst_phase():
+    assert get_phase_feedback(
+        {"backswing_phase": 20, "impact_phase": 90, "follow_through_phase": 88}
+    ) == "Rotate your shoulders early"
+    assert get_phase_feedback(
+        {"backswing_phase": 95, "impact_phase": 31, "follow_through_phase": 90}
+    ) == "Head steady, eyes on the ball"
+    assert get_phase_feedback(
+        {"backswing_phase": 92, "impact_phase": 88, "follow_through_phase": 12}
+    ) == "Complete your follow-through naturally"
+
+
+def test_phase_feedback_falls_back_when_unsegmentable():
+    # No recognizable swing to point at — a setup cue, not a random phase tip.
+    assert get_phase_feedback({}) == "Keep your feet shoulder-width apart and relaxed"
+    assert get_phase_feedback({"left_elbow": 40.0}) == (
+        "Keep your feet shoulder-width apart and relaxed"
+    )
+
+
+def test_phase_tip_survives_the_feedback_cap():
+    # Only three items are joined into `feedback`; the phase tip must outrank
+    # the generic per-angle advice or the user never sees it.
+    tips = {
+        "Rotate your shoulders early",
+        "Head steady, eyes on the ball",
+        "Complete your follow-through naturally",
+        "Keep your feet shoulder-width apart and relaxed",
+    }
+    result = evaluate_shot(
+        None, synthetic.player_replay("cover_drive", noise=3.0, offset=5.0),
+        shot_type="cover_drive",
+    )
+    assert any(part in tips for part in result["feedback"].split(" | "))
+
+
+def test_head_tilt_warning_fires_and_is_not_dead_code():
+    # Regression: this compared `head_alignment` (bounded to [-1, 1]) against
+    # 3.0, so it could never fire for any input.
+    def seq(tilt):
+        return [{"left_elbow": 150.0, "right_elbow": 150.0,
+                 "left_knee": 170.0, "right_knee": 170.0,
+                 "head_tilt": tilt} for _ in range(20)]
+
+    level = evaluate_batting_biomechanics(seq(2.0))
+    cocked = evaluate_batting_biomechanics(seq(35.0))
+    assert not any("Head Alignment" in f for f in level)
+    assert any("Head Alignment" in f for f in cocked)

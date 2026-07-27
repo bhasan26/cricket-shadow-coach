@@ -31,7 +31,7 @@ from geo import (
     get_recorded_shot_types,
     get_shot_name,
     get_feedback_for_angle,
-    get_position_feedback,
+    get_phase_feedback,
 )
 
 # Angle channels compared against ideal models.
@@ -64,6 +64,12 @@ MIN_MATCH_FIT = 50.0
 # more points on the genuine rep but lifts that non-shot to 63 — forgiveness
 # that starts flattering motion which isn't a cricket shot at all.
 MAX_BUILD_CALIBRATION = 8.0
+
+# Head cock (degrees from the shoulder line) that earns a coaching note. A
+# heuristic for practice guidance, not a clinical measure — ear landmarks are
+# noisy, so the check uses the 90th percentile over the sequence rather than a
+# single frame.
+HEAD_TILT_WARN_DEGREES = 20.0
 # Ceiling applied when the motion confidently matches a different shot — a
 # well-executed pull shot is not a good cover drive, whatever its angles score.
 MISMATCH_SCORE_CAP = 45
@@ -243,13 +249,19 @@ def evaluate_batting_biomechanics(angle_sequence, is_right_handed=True, age_grou
                 f"(measured {min_front_knee:.1f}°). A collapsed knee destroys shot control and balance."
             )
 
-    head_alignments = [f.get("head_alignment", 0) for f in angle_sequence]
-    if head_alignments:
-        max_tilt = max(abs(h) for h in head_alignments)
-        if max_tilt > 3.0:
+    # Head cock in degrees, relative to the player's own shoulder line. This
+    # previously compared `head_alignment` — a normalized coordinate offset
+    # bounded to [-1, 1] — against 3.0, so the warning could never fire.
+    head_tilts = channel_values(angle_sequence, "head_tilt")
+    if head_tilts:
+        # Sustained tilt, not a single frame of tracker noise: the ear landmarks
+        # are among MediaPipe's jitteriest.
+        max_tilt = float(np.percentile(head_tilts, 90))
+        if max_tilt > HEAD_TILT_WARN_DEGREES:
             feedback.append(
-                "⚠️ Head Alignment: Severe head tilt detected. This alters binocular "
-                "visual depth tracking and can cause premature bat closing."
+                f"⚠️ Head Alignment: Head cocked {max_tilt:.0f}° relative to your "
+                "shoulders. Keeping your eyes level helps depth perception — try to "
+                "stay square through the shot."
             )
 
     return feedback
@@ -749,6 +761,13 @@ def calculate_sequence_score(angle_sequence, shot_type="cover_drive", is_right_h
     else:
         feedback_list.append(f"Keep working on your {shot_name}")
 
+    # Straight after the headline: which part of THIS swing was weakest. Only
+    # three feedback items survive the join below, so this has to outrank the
+    # generic per-angle tips or it never reaches the user.
+    phase_feedback = get_phase_feedback(angle_scores)
+    if phase_feedback:
+        feedback_list.append(phase_feedback)
+
     if not is_standing and stance_feedback:
         feedback_list.append(stance_feedback)
     feedback_list.extend(motion_feedback)
@@ -764,9 +783,6 @@ def calculate_sequence_score(angle_sequence, shot_type="cover_drive", is_right_h
         if fb:
             feedback_list.append(fb)
 
-    pos_feedback = get_position_feedback(len(angle_sequence))
-    if pos_feedback:
-        feedback_list.append(pos_feedback)
 
     result = {
         "score": int(round(final_score)),

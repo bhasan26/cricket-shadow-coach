@@ -554,13 +554,46 @@ def get_feedback_for_angle(angle_name, user_value):
     return ""
 
 
+# Swing phase (from shot_evaluator.segment_phases) -> coaching tip. The
+# downswing tip covers the run-up to contact, which segmentation folds into the
+# impact phase.
+PHASE_FEEDBACK_KEYS = {
+    "backswing_phase": "backswing",
+    "impact_phase": "contact",
+    "follow_through_phase": "follow_through",
+}
+
+
+def get_phase_feedback(phase_scores):
+    """
+    Coaching tip for the swing phase that scored WORST, so the advice points at
+    the part of the shot that actually needs work.
+
+    ``phase_scores`` is the ``{phase}_phase`` subset of ``angle_scores``. Returns
+    the setup tip when no phase could be segmented (no recognizable swing), and
+    "" when there is nothing useful to say.
+    """
+    scored = {
+        key: value for key, value in (phase_scores or {}).items()
+        if key in PHASE_FEEDBACK_KEYS
+    }
+    if not scored:
+        return POSITION_FEEDBACK.get("setup", "")
+    worst = min(scored, key=scored.get)
+    return POSITION_FEEDBACK.get(PHASE_FEEDBACK_KEYS[worst], "")
+
+
 def get_position_feedback(frame_index):
     """
     Get position-based feedback for a specific frame in the shot sequence.
-    
+
+    DEPRECATED for sequence scoring — ``get_phase_feedback`` supersedes it.
+    Callers were passing a frame COUNT here, which always exceeded every
+    threshold and so always returned the follow-through tip.
+
     Args:
         frame_index: Frame number in the shot sequence
-    
+
     Returns:
         String: Position-specific feedback
     """
