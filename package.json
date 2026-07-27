@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@mediapipe/pose": "^0.5.1675469404",
+    "@vercel/speed-insights": "^2.0.0",
     "axios": "^1.15.2",
     "onnxruntime-web": "^1.27.0",
     "react": "^19.2.5",

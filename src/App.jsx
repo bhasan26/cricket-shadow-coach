@@ -1,5 +1,6 @@
 import { Suspense, lazy } from 'react';
 import { Routes, Route, useNavigate } from 'react-router-dom';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import LandingPage from './LandingPage';
 import Header from './components/Header';
 import Hero from './components/Hero';
@@ -66,15 +67,18 @@ function LegalRoute({ Component }) {
 
 function App() {
   return (
-    <Routes>
-      <Route path="/" element={<LandingRoute />} />
-      <Route path="/live" element={<AnalysisLayout><CameraFeed /></AnalysisLayout>} />
-      <Route path="/dashboard" element={<AnalysisLayout><VideoDashboard /></AnalysisLayout>} />
-      <Route path="/privacy" element={<LegalRoute Component={PrivacyPolicy} />} />
-      <Route path="/terms" element={<LegalRoute Component={TermsOfService} />} />
-      <Route path="/contact" element={<LegalRoute Component={ContactUs} />} />
-      <Route path="*" element={<LandingRoute />} />
-    </Routes>
+    <>
+      <Routes>
+        <Route path="/" element={<LandingRoute />} />
+        <Route path="/live" element={<AnalysisLayout><CameraFeed /></AnalysisLayout>} />
+        <Route path="/dashboard" element={<AnalysisLayout><VideoDashboard /></AnalysisLayout>} />
+        <Route path="/privacy" element={<LegalRoute Component={PrivacyPolicy} />} />
+        <Route path="/terms" element={<LegalRoute Component={TermsOfService} />} />
+        <Route path="/contact" element={<LegalRoute Component={ContactUs} />} />
+        <Route path="*" element={<LandingRoute />} />
+      </Routes>
+      <SpeedInsights />
+    </>
   );
 }
 
