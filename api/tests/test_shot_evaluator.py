@@ -186,3 +186,40 @@ def test_head_tilt_warning_fires_and_is_not_dead_code():
     cocked = evaluate_batting_biomechanics(seq(35.0))
     assert not any("Head Alignment" in f for f in level)
     assert any("Head Alignment" in f for f in cocked)
+
+
+# ── bowling elbow extension ────────────────────────────────────────────────
+
+def test_extension_matches_ground_truth():
+    for true_ext in (0.0, 5.0, 15.0, 20.0, 30.0, 45.0):
+        seq = synthetic.bowling_action(extension_deg=true_ext)
+        measured = evaluate_bowling_action(seq)["angle_scores"]["bowling_arm_extension"]
+        assert abs(measured - true_ext) <= 2.0, f"{true_ext}: measured {measured}"
+
+
+def test_short_delivery_window_does_not_lose_the_peak():
+    # Regression: scipy.signal.medfilt zero-pads, dragging the last two samples
+    # of the window down and discarding peak extension. On a 6-frame window that
+    # reported 60% of truth, so a 25° action read as 15° and passed as legal.
+    result = evaluate_bowling_action(
+        synthetic.bowling_action(extension_deg=25.0, n_delivery=6)
+    )
+    assert result["angle_scores"]["bowling_arm_extension"] >= 23.0
+    assert result["is_good_shot"] is False
+
+
+def test_legality_boundary_sits_at_15_degrees():
+    legal = evaluate_bowling_action(synthetic.bowling_action(extension_deg=14.0))
+    illegal = evaluate_bowling_action(synthetic.bowling_action(extension_deg=20.0))
+    assert legal["is_good_shot"] is True
+    assert illegal["is_good_shot"] is False
+
+
+def test_gather_extension_is_not_counted():
+    # Rule 11.1 measures only from upper-arm-horizontal to release; a 40°
+    # excursion during the gather is legal and must be ignored entirely.
+    result = evaluate_bowling_action(
+        synthetic.bowling_action(extension_deg=5.0, gather_extension_deg=40.0)
+    )
+    assert result["angle_scores"]["bowling_arm_extension"] <= 7.0
+    assert result["is_good_shot"] is True

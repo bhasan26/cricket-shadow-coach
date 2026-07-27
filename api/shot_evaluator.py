@@ -376,9 +376,18 @@ def evaluate_bowling_action(angle_sequence, is_right_handed=None, age_group="adu
                 "feedback": f"Could not isolate delivery swing for {arm_name} bowler. "
                             "Start with hands low and swing fully above your shoulder."}
 
-    import scipy.signal as signal
+    # Despike the elbow series, replicating the edge samples rather than
+    # zero-padding. scipy.signal.medfilt zero-pads, which drags the last two
+    # samples of the window toward zero and silently discards the peak
+    # extension — losing 2/(n-1) of the measured range. On a 6-frame delivery
+    # window (a fast arm at 30fps) that reported only 60% of the true value, so
+    # a genuine 25° extension read as 15° and passed as legal. Under-reporting
+    # is the dangerous direction here: it clears actions that should be flagged.
+    from scipy.ndimage import median_filter
     if len(delivery_frames) >= 5:
-        smoothed = signal.medfilt(delivery_frames, kernel_size=5)
+        smoothed = median_filter(
+            np.asarray(delivery_frames, dtype=float), size=5, mode="nearest"
+        )
     else:
         smoothed = delivery_frames
 

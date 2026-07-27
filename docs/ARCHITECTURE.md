@@ -124,6 +124,15 @@ apex). Verdicts report an *estimated* extension against the 15° guideline —
 3D capture). A `confidence: low` flag fires when the window has < 5 frames,
 could not be isolated, or tracking quality < 60%; the UI grays the score.
 
+The elbow series is despiked with `scipy.ndimage.median_filter(mode="nearest")`,
+**not** `scipy.signal.medfilt`, which zero-pads. Zero-padding drags the last two
+samples of the delivery window toward zero and discards the peak extension,
+losing `2/(n-1)` of the measured range — on a 6-frame window (a fast arm at
+30fps) it reported 60% of truth, so a genuine 25° extension read as 15° and
+passed as legal. Under-reporting is the dangerous direction here, so
+`api/eval/run_eval.py` gates measured extension against injected ground truth
+to within 2°, including the short-window and gather-excursion cases.
+
 ### 8. Planned ML layer (`api/train_landmark_classifier.py`)
 
 A small 1D temporal CNN over normalized landmark sequences (48×99 input,
@@ -131,6 +140,17 @@ A small 1D temporal CNN over normalized landmark sequences (48×99 input,
 in-browser via `onnxruntime-web`. Training requires per-class video clips;
 methodology (70/15/15 split by video, early stopping, confusion matrix, ONNX
 parity check) is enforced by the script. Ship gate: ≥ 80% test accuracy.
+
+### 9. Validating against real footage (`api/eval/run_fixtures.py`)
+
+Everything in `run_eval.py` is synthetic — sequences generated from the same
+references they are scored against — so it proves self-consistency, not
+accuracy. `run_fixtures.py` scores REAL recorded clips (one folder per shot
+type, folder name = ground truth) and reports genuine shot-identification
+accuracy, exiting non-zero below 80%. Extraction is cached with
+`--save-landmarks` so the scorer can be iterated without re-running MediaPipe.
+
+Until real clips exist, no accuracy figure in this project is a measurement.
 
 ## Component Architecture
 

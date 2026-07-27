@@ -9,6 +9,7 @@ table. Acceptance targets:
   * noisy ideal             >= 75
   * still / flailing        <= 30
   * WRONG shot selected     <= 50   (a clean pull shot graded as a cover drive)
+  * bowling elbow extension within 2 deg of injected ground truth
 
 Plus a shot-identification sweep: across noise, tempo and per-player angle
 offset, ``identify_shot`` must name the shot that was actually played, and must
@@ -67,6 +68,9 @@ TARGETS = {
     "wrong_shot": (None, 50),
 }
 
+# Elbow extension must land within this many degrees of ground truth.
+BOWLING_TOLERANCE_DEG = 2.0
+
 # Realistic-user conditions for the identification sweep: (noise°, tempo, offset°).
 ID_CONDITIONS = [
     (0.0, 1.0, 0.0),
@@ -112,6 +116,38 @@ def run_identification():
     return failures
 
 
+def run_bowling():
+    """
+    Gate the ICC elbow-extension measurement against known ground truth.
+
+    Under-reporting is the dangerous direction — it clears actions that should
+    be flagged — so the tolerance is tight and the short-window case (a fast arm
+    at 30fps, where edge effects bite hardest) is checked explicitly.
+    """
+    print("\nBOWLING ELBOW EXTENSION (measured vs injected ground truth)")
+    print(f"{'case':<28}{'true':>6}{'measured':>10}{'legal':>8}  RESULT")
+    print("-" * 62)
+    failures = 0
+
+    cases = [("full window", {}, ext) for ext in (0.0, 5.0, 15.0, 20.0, 30.0)]
+    # Fast arm: a short delivery window is where edge handling matters most.
+    cases += [("short window (6 frames)", {"n_delivery": 6}, ext) for ext in (5.0, 25.0)]
+    # Extension during the gather is legal under Rule 11.1 and must be ignored.
+    cases += [("40 deg gather excursion", {"gather_extension_deg": 40.0}, 5.0)]
+
+    for label, kwargs, true_ext in cases:
+        seq = synthetic.bowling_action(extension_deg=true_ext, **kwargs)
+        result = evaluate_shot(None, seq, shot_type="bowling_action")
+        measured = result["angle_scores"]["bowling_arm_extension"]
+        legal = result["is_good_shot"]
+        ok = abs(measured - true_ext) <= BOWLING_TOLERANCE_DEG and legal == (true_ext <= 15.0)
+        print(f"{label:<28}{true_ext:>6.0f}{measured:>10.1f}{str(legal):>8}  "
+              f"{'PASS' if ok else 'FAIL'}")
+        if not ok:
+            failures += 1
+    return failures
+
+
 def main():
     print(f"{'CASE':<26}{'SCORE':>6}  {'TARGET':>10}  RESULT")
     print("-" * 56)
@@ -131,6 +167,7 @@ def main():
 
     print("-" * 56)
     failures += run_identification()
+    failures += run_bowling()
     print("-" * 56)
     if failures:
         print(f"{failures} case(s) missed target")

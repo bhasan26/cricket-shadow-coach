@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { NANO_ICONS } from './shotIcons';
 
+import { repConsistency } from './consistency';
+
 function Feedback({ score, message, shotName = '', analysisResult = null, history = [] }) {
   const [showHistory, setShowHistory] = useState(false);
   const scorePercentage = Math.min(100, Math.max(0, score || 0));
@@ -56,6 +58,8 @@ function Feedback({ score, message, shotName = '', analysisResult = null, histor
   const totalDrills = history.length;
   const avgScore = totalDrills > 0 ? Math.round(history.reduce((acc, h) => acc + h.score, 0) / totalDrills) : 0;
   const complianceRate = totalDrills > 0 ? Math.round((history.filter(h => h.isLegal || h.score >= 70).length / totalDrills) * 100) : 0;
+  // Repeatability of the drill just performed — null until enough reps of it.
+  const consistency = repConsistency(history, analysisResult?.shot_type || history[0]?.key);
 
   return (
     <div>
@@ -319,6 +323,27 @@ function Feedback({ score, message, shotName = '', analysisResult = null, histor
                   <div style={{ fontSize: '0.58rem', color: '#64748b', fontWeight: 800, textTransform: 'uppercase', marginTop: '2px', letterSpacing: '0.5px' }}>Compliance</div>
                 </div>
               </div>
+
+              {/* Repeatability of the CURRENT drill. Average says how good your
+                  best rep looks; this says whether you can reproduce it. */}
+              {consistency && (
+                <div style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  background: 'rgba(15, 23, 42, 0.35)', padding: '10px 12px',
+                  borderRadius: '12px', border: '1px solid rgba(255,255,255,0.02)',
+                  marginBottom: '18px',
+                }}>
+                  <div style={{ fontSize: '0.58rem', color: '#64748b', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    Consistency · last {consistency.reps} reps
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                    <span style={{ fontSize: '0.62rem', color: '#94a3b8', fontWeight: 700 }}>{consistency.label}</span>
+                    <span className="mono-telemetry" style={{ fontSize: '1.1rem', fontWeight: 900, color: '#38bdf8' }}>
+                      {consistency.consistency}%
+                    </span>
+                  </div>
+                </div>
+              )}
               
               {/* Leaderboard list */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '200px', overflowY: 'auto', paddingRight: '4px' }}>
