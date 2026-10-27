@@ -1,0 +1,4 @@
+# Container runtime with optional YOLO ball tracking.
+-r requirements.in
+opencv-python==4.11.0.86
+ultralytics

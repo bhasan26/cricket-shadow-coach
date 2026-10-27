@@ -6,6 +6,21 @@ All endpoint paths below are relative to `/api` (for example,
 `POST http://localhost:8000/api/analyze-shot`). The same prefix is used in
 production.
 
+### Contact messages
+
+- `GET /api/contact/status` returns `{"available": true}` only when all server
+  mail settings validate. This checks configuration, not provider connectivity.
+- `POST /api/contact` accepts JSON with `name` (trimmed, 1–100 characters, no
+  control characters), `email` (valid email, at most 254 characters), `message`
+  (trimmed, 10–4000 characters), and an optional `website` honeypot (leave empty).
+- HTTP 202 with a `message` string means SMTP accepted the message. HTTP 400
+  rejects the honeypot, 422 rejects invalid fields, 429 applies burst protection
+  (`Retry-After: 600`), 503 means mail settings are unavailable, and 502 means
+  delivery could not be confirmed. Do not automatically retry uncertain delivery.
+- Limits are five submissions per connection address and twenty total per ten
+  minutes per process; deployments with multiple instances need shared edge
+  protection. No user authentication is required. See [contact setup](CONTACT_SETUP.md).
+
 ### Pose input validation
 
 - Each frame must have exactly 33 landmarks with finite `x`, `y`, and `z`.
@@ -451,7 +466,8 @@ Response from `/analyze-shot`.
 
 ## Rate Limiting
 
-Currently no rate limiting. For production, implement:
+Contact endpoints have the per-process limits described above. Scoring endpoints
+currently have no rate limiting. For production, consider:
 - 100 requests/minute per IP
 - 1000 frames/minute per user
 

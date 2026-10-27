@@ -1,5 +1,13 @@
 # Deployment & Verification Checklist
 
+Current paths are `api/` and `src/`; use the root [README](../README.md) for
+current startup/deployment commands. The older checklist below contains legacy
+paths. Python 3.12 builds install their locked dependency profile with
+`pip install --require-hashes --no-deps -r requirements.txt` (or the full profile
+for CV containers), then run `pip check`. See [dependency maintenance](DEPENDENCIES.md).
+Configure private SMTP variables on the backend host using
+[contact setup](CONTACT_SETUP.md); local environment files are not deployed.
+
 Complete checklist for deploying the Cricket Batting Coach application.
 
 ## Pre-Deployment Verification

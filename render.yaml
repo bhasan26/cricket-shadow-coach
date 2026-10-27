@@ -4,7 +4,7 @@ services:
     env: python
     rootDir: api
     # Full CV stack so /api/track-ball works on this container deployment.
-    buildCommand: "pip install -r requirements-full.txt"
+    buildCommand: "pip install --require-hashes --no-deps -r requirements-full.txt && pip check"
     startCommand: "uvicorn index:app --host 0.0.0.0 --port $PORT"
     envVars:
       - key: PYTHON_VERSION

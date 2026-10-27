@@ -37,19 +37,6 @@ export default function Footer({ onNavigate }) {
           </div>
         </div>
 
-        {/* Right Column */}
-        <div className="footer-blob-right">
-          <p className="footer-address">
-            9718 N STEVENS STREET<br />
-            bhasan26@icloud.com
-          </p>
-          <a href="tel:+16097017561" className="courto-btn courto-btn-primary footer-phone-btn">
-            +1 609 701 7561
-            <span className="phone-icon-circle">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14M12 5l7 7-7 7" /></svg>
-            </span>
-          </a>
-        </div>
       </div>
 
       <div className="footer-bottom">

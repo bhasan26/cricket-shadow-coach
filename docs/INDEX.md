@@ -13,6 +13,8 @@ Welcome to the Cricket Shadow Batting Coach project! This is a complete real-tim
 | **[ARCHITECTURE.md](./ARCHITECTURE.md)** | Technical deep-dive | 30 min |
 | **[API_REFERENCE.md](./API_REFERENCE.md)** | Complete API docs | 15 min |
 | **[DEPLOYMENT.md](./DEPLOYMENT.md)** | Production deployment | 20 min |
+| **[CONTACT_SETUP.md](./CONTACT_SETUP.md)** | Private inbox and SMTP delivery | 5 min |
+| **[DEPENDENCIES.md](./DEPENDENCIES.md)** | Locked Python profiles and updates | 5 min |
 | **[IMPLEMENTATION_SUMMARY.md](./IMPLEMENTATION_SUMMARY.md)** | What was built | 10 min |
 
 ## 📚 Documentation Guide

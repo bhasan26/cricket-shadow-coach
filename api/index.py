@@ -13,6 +13,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 # Import local modules
 from angle_utils import extract_shot_angles
+from contact import contact_availability, submit_contact
 from shot_evaluator import SCORING_VERSION, evaluate_frame, evaluate_shot
 
 logging.basicConfig(level=logging.INFO)
@@ -53,6 +54,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.get("/api/contact/status")(contact_availability)
+app.post("/api/contact", status_code=202)(submit_contact)
 
 
 # Request/Response models

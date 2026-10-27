@@ -1,50 +1,93 @@
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
+import { Link } from 'react-router-dom';
+import { checkContactAvailability, sendContactMessage } from '../api';
 import LegalNav from '../components/LegalNav';
 import Footer from '../components/Footer';
+import './ContactUs.css';
+
+const EMPTY_FORM = { name: '', email: '', message: '' };
 
 export default function ContactUs({ onNavigate }) {
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [availability, setAvailability] = useState('checking');
+  const [status, setStatus] = useState('idle');
+  const [notice, setNotice] = useState('');
+  const pending = useRef(null);
+  const mounted = useRef(true);
+
   useEffect(() => {
+    mounted.current = true;
     window.scrollTo(0, 0);
+    checkContactAvailability().then(available => {
+      if (mounted.current) setAvailability(available ? 'ready' : 'unavailable');
+    });
+    return () => { mounted.current = false; pending.current?.abort(); };
   }, []);
+
+  const retryAvailability = async () => {
+    setAvailability('checking');
+    const available = await checkContactAvailability();
+    if (mounted.current) setAvailability(available ? 'ready' : 'unavailable');
+  };
+
+  const submit = async event => {
+    event.preventDefault();
+    if (pending.current || availability !== 'ready') return;
+    const website = new FormData(event.currentTarget).get('website') || '';
+    const controller = new AbortController();
+    pending.current = controller;
+    setStatus('sending');
+    setNotice('');
+    try {
+      const result = await sendContactMessage({ ...form, website }, controller.signal);
+      if (!mounted.current || controller.signal.aborted) return;
+      setForm(EMPTY_FORM);
+      setStatus('success');
+      setNotice(result.message);
+    } catch (error) {
+      if (!mounted.current || controller.signal.aborted) return;
+      setStatus('error');
+      setNotice(error.message || 'We could not confirm delivery. Your message is still here; please try again later.');
+    } finally {
+      pending.current = null;
+    }
+  };
+
+  const update = event => setForm(previous => ({ ...previous, [event.target.name]: event.target.value }));
 
   return (
     <div className="courto-landing" style={{ background: 'var(--bg-base)' }}>
       <Helmet>
         <title>Contact Us — Cricket Shadow Coach</title>
-        <meta name="description" content="Get in touch with the Cricket Shadow Coach team for questions, feedback, or academy partnership inquiries." />
+        <meta name="description" content="Send a private message with questions or feedback about Cricket Shadow Coach." />
       </Helmet>
       <LegalNav onNavigate={onNavigate} />
-      
-      <main className="legal-page-main">
-        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(3rem, 5vw, 4.5rem)', fontStyle: 'italic', marginBottom: '24px', color: 'var(--text-primary)', textTransform: 'uppercase' }}>
-          Get In <span className="text-neon" style={{ color: 'var(--accent-mint)' }}>Touch</span>
-        </h1>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '1.1rem', lineHeight: '1.8', fontFamily: 'var(--font-body)', marginBottom: '48px' }}>
-          Have questions about our biomechanical analysis platform? Interested in partnering with us for your academy? Send us a message and our team will get back to you shortly.
-        </p>
-
-        <form style={{ display: 'flex', flexDirection: 'column', gap: '24px' }} onSubmit={(e) => e.preventDefault()}>
-          <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
-            <div style={{ flex: '1 1 300px' }}>
-              <label style={{ display: 'block', marginBottom: '8px', fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--text-primary)' }}>NAME</label>
-              <input type="text" placeholder="Enter your name" style={{ width: '100%', padding: '16px', background: 'var(--bg-surface)', border: '1px solid var(--border-glass)', borderRadius: '8px', color: 'var(--text-primary)', fontFamily: 'var(--font-body)', fontSize: '1rem' }} />
-            </div>
-            <div style={{ flex: '1 1 300px' }}>
-              <label style={{ display: 'block', marginBottom: '8px', fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--text-primary)' }}>EMAIL</label>
-              <input type="email" placeholder="Enter your email address" style={{ width: '100%', padding: '16px', background: 'var(--bg-surface)', border: '1px solid var(--border-glass)', borderRadius: '8px', color: 'var(--text-primary)', fontFamily: 'var(--font-body)', fontSize: '1rem' }} />
-            </div>
+      <main className="legal-page-main contact-page">
+        <h1>Get In <span>Touch</span></h1>
+        <p>Have a question, found a problem, or tried a practice session? Send a message with your feedback.</p>
+        {availability === 'checking' && <p role="status">Checking message delivery…</p>}
+        {availability === 'unavailable' && (
+          <div className="contact-notice" role="status">
+            <p>Contact messages are temporarily unavailable. Please try again later.</p>
+            <button type="button" className="courto-btn courto-btn-outline" onClick={retryAvailability}>Retry connection</button>
           </div>
-          <div>
-            <label style={{ display: 'block', marginBottom: '8px', fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--text-primary)' }}>MESSAGE</label>
-            <textarea placeholder="How can we help you?" rows="6" style={{ width: '100%', padding: '16px', background: 'var(--bg-surface)', border: '1px solid var(--border-glass)', borderRadius: '8px', color: 'var(--text-primary)', fontFamily: 'var(--font-body)', fontSize: '1rem', resize: 'vertical' }}></textarea>
-          </div>
-          <button className="courto-btn courto-btn-primary" style={{ alignSelf: 'flex-start', marginTop: '16px' }}>
-            SEND MESSAGE
-          </button>
+        )}
+        <form onSubmit={submit} aria-label="Contact form" aria-busy={status === 'sending'}>
+          <fieldset disabled={availability !== 'ready' || status === 'sending'}>
+            <legend className="contact-sr-only">Your contact details and message</legend>
+            <div className="contact-fields-row">
+              <div><label htmlFor="contact-name">Name</label><input id="contact-name" name="name" autoComplete="name" required maxLength={100} value={form.name} onChange={update} /></div>
+              <div><label htmlFor="contact-email">Email</label><input id="contact-email" name="email" type="email" autoComplete="email" required maxLength={254} value={form.email} onChange={update} /></div>
+            </div>
+            <div><label htmlFor="contact-message">Message</label><textarea id="contact-message" name="message" required minLength={10} maxLength={4000} rows={6} value={form.message} onChange={update} /></div>
+            <div hidden aria-hidden="true"><label htmlFor="contact-website">Website</label><input id="contact-website" name="website" autoComplete="off" tabIndex={-1} /></div>
+            <p className="contact-privacy">Your name, email, and message are sent privately through our email provider so we can respond. <Link to="/privacy">Privacy policy</Link></p>
+            <button type="submit" className="courto-btn courto-btn-primary">{status === 'sending' ? 'Sending…' : 'Send message'}</button>
+          </fieldset>
         </form>
+        {notice && <p className={`contact-notice ${status}`} role={status === 'error' ? 'alert' : 'status'}>{notice}</p>}
       </main>
-
       <Footer onNavigate={onNavigate} />
     </div>
   );

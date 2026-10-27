@@ -21,7 +21,7 @@ export default function PrivacyPolicy({ onNavigate }) {
           Privacy <span className="text-neon" style={{ color: 'var(--accent-mint)' }}>Policy</span>
         </h1>
         <div style={{ color: 'var(--text-secondary)', fontSize: '1.1rem', lineHeight: '1.8', fontFamily: 'var(--font-body)' }}>
-          <p style={{ marginBottom: '24px' }}>Last Updated: July 6, 2026</p>
+          <p style={{ marginBottom: '24px' }}>Last Updated: October 27, 2026</p>
 
           <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '2rem', fontStyle: 'italic', color: 'var(--text-primary)', marginTop: '48px', marginBottom: '16px' }}>1. Your Video Never Leaves Your Device</h2>
           <p style={{ marginBottom: '24px' }}>
@@ -39,6 +39,10 @@ export default function PrivacyPolicy({ onNavigate }) {
           <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '2rem', fontStyle: 'italic', color: 'var(--text-primary)', marginTop: '48px', marginBottom: '16px' }}>3. Analytics</h2>
           <p style={{ marginBottom: '24px' }}>
             This site loads <strong>Google Analytics</strong> (gtag.js) to measure aggregate, anonymous usage such as page views and browser type. Google may set cookies as part of this. This data is not linked to your cricket analysis sessions or joint coordinates. You can block it with your browser's privacy settings or an ad/tracker blocker.
+          </p>
+          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '2rem', fontStyle: 'italic', color: 'var(--text-primary)', marginTop: '48px', marginBottom: '16px' }}>4. Contact Messages</h2>
+          <p style={{ marginBottom: '24px' }}>
+            When you use the contact form, your name, email address, and message are sent through our email provider to a private inbox so we can respond. These messages remain in the recipient inbox until deleted. Contact messages are not linked to your pose coordinates or practice history. The app does not log message contents. Temporary, in-memory request limits use your connection address to help prevent automated submissions.
           </p>
         </div>
       </main>

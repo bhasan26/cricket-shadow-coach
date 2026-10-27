@@ -48,15 +48,16 @@
 
 **Frontend**
 ```bash
-npm install
+npm ci
 npm run dev        # http://localhost:5173  (proxies /api to :8000)
 ```
 
 **Backend**
 ```bash
 cd api
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt          # or requirements-full.txt for ball tracking
+python3.12 -m venv .venv && source .venv/bin/activate
+pip install --require-hashes --no-deps -r requirements-test.txt
+pip check
 uvicorn index:app --reload --port 8000
 ```
 
@@ -66,6 +67,18 @@ npm test                        # frontend + recording/recovery tests (vitest)
 cd api && python -m pytest tests -q
 python -m eval.run_eval         # scoring calibration harness
 ```
+
+The Python 3.12 dependency profiles include pinned transitive versions and
+package hashes: `requirements.txt` for the server, `requirements-test.txt` for
+tests/lint, `requirements-dev.txt` for legacy reference capture, and
+`requirements-full.txt` for optional ball tracking. Install one profile in a
+fresh environment. See [dependency maintenance](docs/DEPENDENCIES.md) before
+updating a lock.
+
+The `/contact` form delivers through server-side SMTP and keeps drafts on errors.
+Until mail settings are configured, it shows an unavailable message and disables
+sending. Follow [contact setup](docs/CONTACT_SETUP.md) to configure a private
+destination and credentials; these never belong in frontend environment variables.
 
 ## Accuracy & Limitations
 
@@ -139,6 +152,8 @@ tracked in git (attach it to a GitHub Release if needed).
 - [docs/CALCULATION_AUDIT.md](docs/CALCULATION_AUDIT.md) — mathematical corrections, regression cases, and scoring-method version
 - [docs/API_REFERENCE.md](docs/API_REFERENCE.md) — endpoint reference
 - [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) — production deployment
+- [docs/CONTACT_SETUP.md](docs/CONTACT_SETUP.md) — private inbox and SMTP configuration
+- [docs/DEPENDENCIES.md](docs/DEPENDENCIES.md) — locked Python profiles and updates
 - [docs/INDEX.md](docs/INDEX.md) — full docs table of contents
 
 ## License

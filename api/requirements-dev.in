@@ -1,0 +1,4 @@
+# Runtime + reference capture tooling, which still uses mp.solutions.pose.
+-r requirements-test.in
+mediapipe==0.10.21
+opencv-contrib-python==4.11.0.86
