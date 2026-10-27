@@ -126,6 +126,12 @@ function CameraFeed() {
     }
   });
   const isRightHandedRef = useRef(true);
+  // Bowling arm is independent of batting hand; cross-handed players must
+  // not have the opposite elbow evaluated because of their batting preference.
+  const [isRightArmBowler, setIsRightArmBowler] = useState(() => {
+    try { return localStorage.getItem('shadow_bowling_right_arm') !== 'false'; } catch { return true; }
+  });
+  const bowlingArmRef = useRef(isRightArmBowler);
   // Rear camera by default — users prop the phone up and stand back for a full-body shot.
   const [facingMode, setFacingMode] = useState(practiceSession?.facingMode || 'environment');
   // Camera permission failed — drives the in-frame denied/retry overlay.
@@ -175,6 +181,10 @@ function CameraFeed() {
     isRightHandedRef.current = isRightHanded;
     try { localStorage.setItem('shadow_is_right_handed', String(isRightHanded)); } catch { /* ignore quota */ }
   }, [isRightHanded]);
+  useEffect(() => {
+    bowlingArmRef.current = isRightArmBowler;
+    try { localStorage.setItem('shadow_bowling_right_arm', String(isRightArmBowler)); } catch { /* storage unavailable */ }
+  }, [isRightArmBowler]);
 
   // Trigger vocal prompts on drill change
   useEffect(() => {
@@ -207,7 +217,7 @@ function CameraFeed() {
       id: crypto.randomUUID(),
       ...getPracticeContext(),
       shotType: selectedShot,
-      isRightHanded: isRightHandedRef.current,
+      isRightHanded: selectedShot === 'bowling_action' ? bowlingArmRef.current : isRightHandedRef.current,
       name: availableShots[selectedShot]?.name || selectedShot,
       emoji: availableShots[selectedShot]?.emoji || '🏏',
       imageWidth: videoRef.current?.videoWidth,
@@ -715,7 +725,28 @@ function CameraFeed() {
     video.addEventListener('resize', syncSize);
     // Pass a stable wrapper that dispatches to the latest callback via ref, so the
     // detector is created exactly once per camera session (not per state change).
-    const detector = createPoseDetector(video, (lm, wl) => handlePoseLandmarksRef.current(lm, wl));
+    const detector = createPoseDetector(video, (lm, wl) => handlePoseLandmarksRef.current(lm, wl), {
+      onError: () => {
+        if (!mounted) return;
+        setPoseReady(false);
+        setPoseError('Movement tracking stopped. Retry tracking before recording another attempt.');
+        autoRecordEnabledRef.current = false;
+        setAutoRecordEnabled(false);
+        autoRecordStateRef.current = 'IDLE';
+        anglesBufferRef.current = [];
+        if (isRecordingRef.current) {
+          // A broken detector cannot finish this stroke. Discard the partial
+          // attempt without submitting a misleading technique score.
+          isRecordingRef.current = false;
+          setIsRecording(false);
+          frameBufferRef.current = [];
+          recordingAttemptRef.current = null;
+          setCanRetryAnalysis(false);
+          setTelemetry(previous => ({ ...previous, bufferedFrameCount: 0 }));
+          setCurrentFeedback('Recording stopped because movement tracking failed. Retry tracking, then record the full stroke again.');
+        }
+      },
+    });
     poseDetectorRef.current = detector;
     detector.start().then(() => {
       if (!mounted) return;
@@ -1006,13 +1037,13 @@ function CameraFeed() {
           <div className="key-stats-strip">
             {(selectedShot === 'bowling_action'
               ? [
-                  { label: 'Bowl Elbow', val: liveRightElbow ?? liveLeftElbow, type: 'elbow' },
-                  { label: 'Brace Knee', val: liveLeftKnee ?? liveRightKnee, type: 'knee' },
+                  { label: 'Bowl Elbow', val: isRightArmBowler ? liveRightElbow : liveLeftElbow, type: 'elbow' },
+                  { label: 'Brace Knee', val: isRightArmBowler ? liveLeftKnee : liveRightKnee, type: 'knee' },
                   { label: 'Spine', val: liveSpineTilt, type: 'spine' },
                 ]
               : [
-                  { label: 'Front Elbow', val: liveLeftElbow, type: 'left_elbow' },
-                  { label: 'Front Knee', val: liveLeftKnee, type: 'left_knee' },
+                  { label: 'Front Elbow', val: isRightHanded ? liveLeftElbow : liveRightElbow, type: 'elbow' },
+                  { label: 'Front Knee', val: isRightHanded ? liveLeftKnee : liveRightKnee, type: 'knee' },
                   { label: 'Spine', val: liveSpineTilt, type: 'spine' },
                 ]
             ).map((s) => (
@@ -1052,10 +1083,10 @@ function CameraFeed() {
               {selectedShot === 'bowling_action' ? (
                 <>
                   <div>
-                    {renderGauge('Bowling Arm Elbow', liveRightElbow ?? liveLeftElbow, 180, 'elbow', '15° Limit')}
+                    {renderGauge('Bowling Arm Elbow', isRightArmBowler ? liveRightElbow : liveLeftElbow, 180, 'elbow', 'Live angle')}
                   </div>
                   <div>
-                    {renderGauge('Brace Leg Knee', liveLeftKnee ?? liveRightKnee, 180, 'knee', '135°-155°')}
+                    {renderGauge('Brace Leg Knee', isRightArmBowler ? liveLeftKnee : liveRightKnee, 180, 'knee', '135°-155°')}
                   </div>
                   <div className="telemetry-grid-full">
                     {renderGauge('Spine Tilt (Balance)', liveSpineTilt, 60, 'spine', 'Target: <22°')}
@@ -1069,22 +1100,22 @@ function CameraFeed() {
                     <svg width="16" height="16" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="#00e5ff" style={{ flexShrink: 0 }}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
                     </svg>
-                    <span>Keep your arm straight during release. System measures elbow angle change.</span>
+                    <span>Record a full delivery. The result estimates elbow straightening through the delivery window.</span>
                   </div>
                 </>
               ) : (
                 <>
                   <div>
-                    {renderGauge('Left Elbow (Front)', liveLeftElbow, 180, 'left_elbow', '150°-170°')}
+                    {renderGauge(`Left Elbow (${isRightHanded ? 'Front' : 'Back'})`, liveLeftElbow, 180, 'left_elbow', 'Live angle')}
                   </div>
                   <div>
-                    {renderGauge('Right Elbow (Back)', liveRightElbow, 180, 'right_elbow', '155°-175°')}
+                    {renderGauge(`Right Elbow (${isRightHanded ? 'Back' : 'Front'})`, liveRightElbow, 180, 'right_elbow', 'Live angle')}
                   </div>
                   <div>
-                    {renderGauge('Left Knee (Front)', liveLeftKnee, 180, 'left_knee', '120°-150°')}
+                    {renderGauge(`Left Knee (${isRightHanded ? 'Front' : 'Back'})`, liveLeftKnee, 180, 'left_knee', 'Live angle')}
                   </div>
                   <div>
-                    {renderGauge('Right Knee (Back)', liveRightKnee, 180, 'right_knee', '125°-155°')}
+                    {renderGauge(`Right Knee (${isRightHanded ? 'Back' : 'Front'})`, liveRightKnee, 180, 'right_knee', 'Live angle')}
                   </div>
                   <div className="telemetry-grid-full">
                     {renderGauge('Spine Tilt (Torso)', liveSpineTilt, 60, 'spine', '5°-22°')}
@@ -1178,8 +1209,13 @@ function CameraFeed() {
               isReady={cameraReady && poseReady}
               recordingAllowed={!practiceSession || isRecordingStage(practiceSession)}
               setupLocked={Boolean(practiceSession)}
-              isRightHanded={isRightHanded}
-              onToggleHandedness={(v) => { unlockMobileAudio(); setIsRightHanded(v); }}
+              isBowling={selectedShot === 'bowling_action'}
+              isRightHanded={selectedShot === 'bowling_action' ? isRightArmBowler : isRightHanded}
+              onToggleHandedness={(v) => {
+                unlockMobileAudio();
+                if (selectedShot === 'bowling_action') setIsRightArmBowler(v);
+                else setIsRightHanded(v);
+              }}
             />
             <p className="practice-note">Record one full stroke. Recording stops automatically after 15 seconds or 600 frames.</p>
             {isAnalyzing && (

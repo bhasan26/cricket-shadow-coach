@@ -18,6 +18,7 @@ vi.mock('../audioCoaching', () => ({
 }));
 
 let onPose;
+let onTrackingError;
 let detector;
 const frame = () => Array.from({ length: 33 }, () => ({ x: 0.5, y: 0.5, z: 0, visibility: 0 }));
 const result = { score: 80, feedback: 'Practice complete', shot_name: 'Cover Drive', shot_type: 'cover_drive', is_good_shot: true, angle_scores: {}, tracking_quality: 100 };
@@ -39,7 +40,11 @@ beforeEach(() => {
   fetchShots.mockResolvedValue(null);
   analyzeShotSequence.mockReset().mockResolvedValue(result);
   detector = { start: vi.fn().mockResolvedValue(), destroy: vi.fn() };
-  createPoseDetector.mockImplementation((video, callback) => { onPose = callback; return detector; });
+  createPoseDetector.mockImplementation((video, callback, options) => {
+    onPose = callback;
+    onTrackingError = options.onError;
+    return detector;
+  });
   Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: {
     getUserMedia: vi.fn().mockResolvedValue({ getTracks: () => [{ stop: vi.fn() }] }),
   } });
@@ -80,6 +85,38 @@ async function recordGuidedAttempt(number) {
 }
 
 describe('practice recording and recovery', () => {
+  it('keeps the bowling arm separate from the batting hand in requests and saved preferences', async () => {
+    await openCamera();
+    fireEvent.click(screen.getByRole('button', { name: 'Left-Handed' }));
+    fireEvent.click(screen.getByRole('button', { name: /Bowling Action Check ICC/ }));
+    expect(screen.getByRole('button', { name: 'Right Arm' })).toHaveAttribute('aria-pressed', 'true');
+    analyzeShotSequence.mockResolvedValue({ ...result, shot_type: 'bowling_action', angle_scores: { bowling_arm_extension: 5 } });
+    await recordOneFrame();
+    expect(analyzeShotSequence.mock.calls[0][3]).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Left Arm' }));
+    await recordOneFrame();
+    expect(analyzeShotSequence.mock.calls[1][3]).toBe(false);
+    expect(localStorage.getItem('shadow_is_right_handed')).toBe('false');
+    expect(localStorage.getItem('shadow_bowling_right_arm')).toBe('false');
+    fireEvent.click(screen.getByRole('button', { name: /Cover Drive Classic/ }));
+    expect(screen.getByRole('button', { name: 'Left-Handed' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('discards a recording interrupted by runtime tracking failure and recovers without submitting it', async () => {
+    await openCamera();
+    fireEvent.click(screen.getByRole('button', { name: 'Start Practice' }));
+    act(() => onPose(frame(), null));
+    act(() => onTrackingError(new Error('Tracking runtime failed')));
+    expect(analyzeShotSequence).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toHaveTextContent('Movement tracking stopped');
+    expect(screen.getByRole('button', { name: 'Stop & Analyze Action' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Retry tracking' }));
+    await act(async () => {});
+    await recordOneFrame();
+    expect(analyzeShotSequence).toHaveBeenCalledOnce();
+    expect(analyzeShotSequence.mock.calls[0][0]).toHaveLength(1);
+  });
+
   it('stops exactly at the API frame limit and preserves zero visibility', async () => {
     await openCamera();
     fireEvent.click(screen.getByRole('button', { name: 'Start Practice' }));

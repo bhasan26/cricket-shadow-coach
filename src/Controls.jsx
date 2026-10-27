@@ -1,5 +1,5 @@
 
-function Controls({ onStart, onStop, isRecording, isAnalyzing, isReady = true, recordingAllowed = true, setupLocked = false, isRightHanded = true, onToggleHandedness }) {
+function Controls({ onStart, onStop, isRecording, isAnalyzing, isReady = true, recordingAllowed = true, setupLocked = false, isRightHanded = true, isBowling = false, onToggleHandedness }) {
   const btnBase = {
     padding: '14px 24px',
     fontSize: '0.88rem',
@@ -34,18 +34,18 @@ function Controls({ onStart, onStop, isRecording, isAnalyzing, isReady = true, r
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      {/* Batting handedness — mirrors the ideal model so left-handers score fairly */}
+      {/* Batting hand mirrors the reference; bowling arm selects the measured elbow. */}
       {onToggleHandedness && (
         <div>
           <div style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>
-            Batting Hand
+            {isBowling ? 'Bowling Arm' : 'Batting Hand'}
           </div>
           <div style={{ display: 'flex', gap: '8px' }}>
-            <button type="button" disabled={isRecording || isAnalyzing || setupLocked} onClick={() => onToggleHandedness(true)} style={handBtn(isRightHanded)}>
-              Right-Handed
+            <button type="button" aria-pressed={isRightHanded} disabled={isRecording || isAnalyzing || setupLocked} onClick={() => onToggleHandedness(true)} style={handBtn(isRightHanded)}>
+              {isBowling ? 'Right Arm' : 'Right-Handed'}
             </button>
-            <button type="button" disabled={isRecording || isAnalyzing || setupLocked} onClick={() => onToggleHandedness(false)} style={handBtn(!isRightHanded)}>
-              Left-Handed
+            <button type="button" aria-pressed={!isRightHanded} disabled={isRecording || isAnalyzing || setupLocked} onClick={() => onToggleHandedness(false)} style={handBtn(!isRightHanded)}>
+              {isBowling ? 'Left Arm' : 'Left-Handed'}
             </button>
           </div>
         </div>

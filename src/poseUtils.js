@@ -100,7 +100,7 @@ async function initPose() {
 /**
  * Create a pose detector that processes video frames
  */
-export function createPoseDetector(videoElement, onPoseLandmarks) {
+export function createPoseDetector(videoElement, onPoseLandmarks, { onError = () => {} } = {}) {
   if (!videoElement) {
     throw new Error('A video element is required to initialize Pose.');
   }
@@ -114,6 +114,7 @@ export function createPoseDetector(videoElement, onPoseLandmarks) {
   let pose = null;
   let initialized = false;
   let destroyed = false;
+  let consecutiveErrors = 0;
 
   const init = async () => {
     pose = await initPose();
@@ -133,8 +134,24 @@ export function createPoseDetector(videoElement, onPoseLandmarks) {
     if (initialized && pose && videoElement.readyState >= 2) {
       try {
         await pose.send({ image: videoElement });
-      } catch {
-        // Silently handle frame processing errors
+        consecutiveErrors = 0;
+      } catch (error) {
+        if (stopped || destroyed) return;
+        // Include transient failures in tracking coverage, then stop after
+        // repeated failures instead of displaying a permanently frozen pose.
+        onPoseLandmarks(null, null);
+        consecutiveErrors += 1;
+        if (consecutiveErrors >= 3) {
+          stop();
+          initialized = false;
+          if (poseInstance === pose) {
+            poseInstance = null;
+            loadPromise = null;
+          }
+          try { Promise.resolve(pose.close()).catch(() => {}); } catch { /* broken runtime */ }
+          onError(error);
+          return;
+        }
       }
     }
 
@@ -148,6 +165,7 @@ export function createPoseDetector(videoElement, onPoseLandmarks) {
     }
     if (!destroyed && frameId === null) {
       stopped = false;
+      consecutiveErrors = 0;
       frameId = window.requestAnimationFrame(processFrame);
     }
   };

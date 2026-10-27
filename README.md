@@ -20,6 +20,7 @@
 - **Hands-free auto-record** — stand in your stance and the app detects stability, counts you down, records the shot, and analyses the follow-through automatically.
 - **Live skeleton overlay + telemetry** — real-time joint angles (elbows, knees, spine tilt) with a ghost blueprint to align your stance.
 - **Left / right-handed support** — the ideal model mirrors for left-handers.
+- **Separate bowling-arm selection** — bowling measures the selected arm independently of your saved batting hand.
 - **Runs in-browser** — MediaPipe Pose executes on-device; your video never leaves your machine.
 - **Installable PWA** — offline app-shell, add-to-home-screen.
 
@@ -88,6 +89,8 @@ first. Analysis requests time out after 30 seconds and can be cancelled. Failed
 attempts stay in page memory for an explicit retry, retaining the original drill
 and handedness; starting a new recording or leaving the page discards them.
 Model loading failures show a retry action and keep recording disabled.
+Repeated runtime tracking failures stop recording and offer a model retry;
+interrupted partial strokes are not submitted for analysis.
 
 On `/live`, choose your batting hand and camera, then select **Start cover-drive
 practice**. The drill and setup controls stay fixed across the two sets. The app
