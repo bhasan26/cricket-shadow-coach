@@ -1,45 +1,27 @@
-export function calculateAngleJS(a, b, c) {
-  if (!a || !b || !c) return 0;
-  const ba = { x: a.x - b.x, y: a.y - b.y, z: a.z - b.z };
-  const bc = { x: c.x - b.x, y: c.y - b.y, z: c.z - b.z };
-  const dot = ba.x * bc.x + ba.y * bc.y + ba.z * bc.z;
-  const normBA = Math.sqrt(ba.x * ba.x + ba.y * ba.y + ba.z * ba.z);
-  const normBC = Math.sqrt(bc.x * bc.x + bc.y * bc.y + bc.z * bc.z);
-  if (normBA === 0 || normBC === 0) return 0;
-  let cosine = dot / (normBA * normBC);
-  cosine = Math.max(-1.0, Math.min(1.0, cosine));
-  const rad = Math.acos(cosine);
-  return Math.round(rad * (180 / Math.PI));
+// Image x/z are normalized by width and y by height. Use height/width to
+// express all axes on a common scale; this is still a camera-space estimate.
+export function calculateAngleJS(a, b, c, imageAspect = 1) {
+  if (![a, b, c].every(point => point && (point.visibility ?? 1) >= 0.5)) return null;
+  const ba = [a.x - b.x, (a.y - b.y) * imageAspect, (a.z ?? 0) - (b.z ?? 0)];
+  const bc = [c.x - b.x, (c.y - b.y) * imageAspect, (c.z ?? 0) - (b.z ?? 0)];
+  if (![...ba, ...bc].every(Number.isFinite)) return null;
+  const na = Math.hypot(...ba), nc = Math.hypot(...bc);
+  if (na === 0 || nc === 0) return null;
+  const cosine = ba.reduce((sum, value, i) => sum + (value / na) * (bc[i] / nc), 0);
+  return Math.round(Math.acos(Math.max(-1, Math.min(1, cosine))) * 180 / Math.PI);
 }
 
-export function calculateSpineTiltJS(landmarks) {
-  if (!landmarks[11] || !landmarks[12] || !landmarks[23] || !landmarks[24]) return 0;
-  const midShoulder = {
-    x: (landmarks[11].x + landmarks[12].x) / 2,
-    y: (landmarks[11].y + landmarks[12].y) / 2,
-    z: (landmarks[11].z + landmarks[12].z) / 2
-  };
-  const midHip = {
-    x: (landmarks[23].x + landmarks[24].x) / 2,
-    y: (landmarks[23].y + landmarks[24].y) / 2,
-    z: (landmarks[23].z + landmarks[24].z) / 2
-  };
-  const torso = {
-    x: midShoulder.x - midHip.x,
-    y: midShoulder.y - midHip.y,
-    z: midShoulder.z - midHip.z
-  };
-  const vertical = { x: 0, y: -1, z: 0 };
-  const dot = torso.x * vertical.x + torso.y * vertical.y + torso.z * vertical.z;
-  const normTorso = Math.sqrt(torso.x * torso.x + torso.y * torso.y + torso.z * torso.z);
-  if (normTorso === 0) return 0;
-  let cosine = dot / normTorso;
-  cosine = Math.max(-1.0, Math.min(1.0, cosine));
-  const rad = Math.acos(cosine);
-  return Math.round(rad * (180 / Math.PI));
+export function calculateSpineTiltJS(landmarks, imageAspect = 1) {
+  const torso = [11, 12, 23, 24].map(index => landmarks[index]);
+  if (!torso.every(point => point && (point.visibility ?? 1) >= 0.5)) return null;
+  const midpoint = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, z: ((a.z ?? 0) + (b.z ?? 0)) / 2 });
+  const shoulder = midpoint(torso[0], torso[1]);
+  const hip = midpoint(torso[2], torso[3]);
+  return calculateAngleJS(shoulder, hip, { ...hip, y: hip.y - 1 }, imageAspect);
 }
 
 function getAngleColor(type, value) {
+  if (value == null) return '#64748b';
   if (type.includes('elbow')) {
     if (value >= 145 && value <= 175) return '#10b981'; // Green
     if (value >= 130 && value <= 180) return '#f59e0b'; // Orange
@@ -374,10 +356,10 @@ export function drawSkeleton(ctx, poseLandmarks, ghostType = null, trails = []) 
   for (const item of anglesToCalculate) {
     const [a, b, c] = item.indices.map(idx => poseLandmarks[idx]);
     if (a && b && c) {
-      angleValues[item.type] = calculateAngleJS(a, b, c);
+      angleValues[item.type] = calculateAngleJS(a, b, c, height / width);
     }
   }
-  const liveSpineTilt = calculateSpineTiltJS(poseLandmarks);
+  const liveSpineTilt = calculateSpineTiltJS(poseLandmarks, height / width);
   angleValues['spine'] = liveSpineTilt;
 
   for (const seg of boneSegments) {
@@ -413,7 +395,7 @@ export function drawSkeleton(ctx, poseLandmarks, ghostType = null, trails = []) 
     const ptC = poseLandmarks[item.indices[2]];
     const val = angleValues[item.type];
     
-    if (vertex && ptA && ptC && val !== undefined) {
+    if (vertex && ptA && ptC && val != null) {
       const vis = vertex.visibility !== undefined ? vertex.visibility : 1.0;
       if (vis > 0.45) {
         const color = getAngleColor(item.type, val);
@@ -433,7 +415,7 @@ export function drawSkeleton(ctx, poseLandmarks, ghostType = null, trails = []) 
 
   const shL = poseLandmarks[11];
   const shR = poseLandmarks[12];
-  if (shL && shR && (shL.visibility > 0.45 && shR.visibility > 0.45)) {
+  if (liveSpineTilt != null && shL && shR && (shL.visibility > 0.45 && shR.visibility > 0.45)) {
     const midX = ((shL.x + shR.x) / 2) * width;
     const midY = ((shL.y + shR.y) / 2) * height;
     const color = getAngleColor('spine', liveSpineTilt);

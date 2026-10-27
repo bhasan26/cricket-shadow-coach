@@ -12,6 +12,7 @@ const validScore = value => Number.isFinite(value) && value >= 0 && value <= 100
 const mean = values => values.reduce((sum, value) => sum + value, 0) / values.length;
 
 export const isRecordingStage = session => session?.stage === 'baseline' || session?.stage === 'repeat';
+export const practiceScoringVersion = session => session.baseline[0]?.scoringVersion || 'legacy';
 
 export function summarizeSet(reps) {
   if (!reps.length) return null;
@@ -67,12 +68,17 @@ export function practiceReducer(session, action) {
       if ([...session.baseline, ...session.repeat].some(rep => rep.id === action.attempt.id)) return session;
       const rejection = practiceRejection(action.result);
       if (rejection) return { ...session, notice: rejection };
+      const scoringVersion = action.result.scoring_version || 'legacy';
+      if (session.baseline.length && practiceScoringVersion(session) !== scoringVersion) {
+        return { ...session, notice: 'The scoring method changed during this practice. Return to free practice and start a new guided session to compare both sets fairly.' };
+      }
       const phases = Object.fromEntries(Object.keys(PHASES)
         .filter(key => validScore(action.result.angle_scores[key]))
         .map(key => [key, action.result.angle_scores[key]]));
       const rep = {
         id: action.attempt.id, score: action.result.score,
         trackingQuality: action.result.tracking_quality, phases, timestamp: action.now,
+        scoringVersion,
       };
       const reps = [...session[session.stage], rep];
       const next = { ...session, [session.stage]: reps, notice: '' };
@@ -98,10 +104,12 @@ export function parsePracticeSession(value) {
         || typeof value.isRightHanded !== 'boolean' || !['user', 'environment'].includes(value.facingMode)) return null;
     const validRep = rep => rep && typeof rep.id === 'string' && validScore(rep.score)
       && validScore(rep.trackingQuality) && rep.trackingQuality >= 60 && Number.isFinite(rep.timestamp)
+      && (rep.scoringVersion === undefined || (typeof rep.scoringVersion === 'string' && rep.scoringVersion.length > 0))
       && rep.phases && Object.entries(rep.phases).every(([key, score]) => key in PHASES && validScore(score));
     if (![value.baseline, value.repeat].every(reps => Array.isArray(reps) && reps.length <= REPS_PER_SET && reps.every(validRep))) return null;
     const ids = [...value.baseline, ...value.repeat].map(rep => rep.id);
     if (new Set(ids).size !== ids.length) return null;
+    if (new Set([...value.baseline, ...value.repeat].map(rep => rep.scoringVersion || 'legacy')).size > 1) return null;
     const validStage = (value.stage === 'baseline' && value.baseline.length < REPS_PER_SET && !value.repeat.length)
       || (value.stage === 'review' && value.baseline.length === REPS_PER_SET && !value.repeat.length)
       || (value.stage === 'repeat' && value.baseline.length === REPS_PER_SET && value.repeat.length < REPS_PER_SET)
@@ -111,6 +119,7 @@ export function parsePracticeSession(value) {
     const cleanReps = reps => reps.map(rep => ({
       id: rep.id, score: rep.score, trackingQuality: rep.trackingQuality,
       phases: Object.fromEntries(Object.entries(rep.phases)), timestamp: rep.timestamp,
+      scoringVersion: typeof rep.scoringVersion === 'string' ? rep.scoringVersion : 'legacy',
     }));
     return {
       version: 1, id: value.id, startedAt: value.startedAt, stage: value.stage,
@@ -143,6 +152,7 @@ export function getPracticeSummary(session) {
   });
   return {
     formatVersion: 1, practiceId: session.id, shotType: 'cover_drive',
+    scoringVersion: practiceScoringVersion(session),
     startedAt: session.startedAt, completedAt: session.completedAt,
     setup: { isRightHanded: session.isRightHanded, selectedCamera: session.facingMode },
     focus: session.focus ? { label: session.focus.label, cue: session.focus.cue } : null,

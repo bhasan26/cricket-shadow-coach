@@ -24,20 +24,24 @@ def calculate_angle(point_a, point_b, point_c):
     where u = a - b and v = c - b are vectors formed by the three points.
 
     Returns:
-        Float: Angle in degrees (0-180)
+        Float angle in degrees (0-180), or None for invalid/zero-length bones.
     """
-    a = np.array(point_a, dtype=np.float32)
-    b = np.array(point_b, dtype=np.float32)
-    c = np.array(point_c, dtype=np.float32)
+    a = np.array(point_a, dtype=np.float64)
+    b = np.array(point_b, dtype=np.float64)
+    c = np.array(point_c, dtype=np.float64)
 
     ba = a - b
     bc = c - b
 
-    norm_ba = np.linalg.norm(ba)
-    norm_bc = np.linalg.norm(bc)
-
-    if norm_ba == 0 or norm_bc == 0:
-        return 0.0
+    if not np.all(np.isfinite(ba)) or not np.all(np.isfinite(bc)):
+        return None
+    scale_ba, scale_bc = np.max(np.abs(ba)), np.max(np.abs(bc))
+    if scale_ba == 0 or scale_bc == 0:
+        return None
+    # Normalize bone vectors separately before taking norms, avoiding overflow
+    # and retaining scale invariance for very small or large coordinates.
+    ba, bc = ba / scale_ba, bc / scale_bc
+    norm_ba, norm_bc = np.linalg.norm(ba), np.linalg.norm(bc)
 
     cosine = np.dot(ba, bc) / (norm_ba * norm_bc)
     cosine = np.clip(cosine, -1.0, 1.0)
@@ -115,11 +119,7 @@ def get_spine_tilt(landmarks, coords=None):
         )
         torso = np.array(mid_shoulder) - np.array(mid_hip)
         vertical = np.array([0.0, -1.0, 0.0])  # y points down in MediaPipe
-        torso_norm = np.linalg.norm(torso)
-        if torso_norm == 0:
-            return None
-        cosine = np.clip(np.dot(torso, vertical) / torso_norm, -1.0, 1.0)
-        return float(np.degrees(np.arccos(cosine)))
+        return calculate_angle(torso, (0, 0, 0), vertical)
     except (KeyError, IndexError, TypeError):
         return None
 
@@ -172,8 +172,9 @@ def get_head_tilt(landmarks):
     delta = np.degrees(
         np.arctan2(ear[1], ear[0]) - np.arctan2(shoulder[1], shoulder[0])
     )
-    # Wrap to [-180, 180], then report magnitude.
-    delta = (delta + 180.0) % 360.0 - 180.0
+    # These are lines, not directed vectors: a reversed ear landmark order
+    # must not turn two parallel, level lines into a 180-degree head tilt.
+    delta = (delta + 90.0) % 180.0 - 90.0
     return float(abs(delta))
 
 
@@ -193,7 +194,7 @@ def get_shoulder_width(landmarks):
 ANGLE_KEYS = ["left_elbow", "right_elbow", "left_knee", "right_knee", "spine_tilt"]
 
 
-def extract_shot_angles(landmarks, world_landmarks=None):
+def extract_shot_angles(landmarks, world_landmarks=None, image_width=None, image_height=None):
     """
     Extract all critical angles and key relative coordinates for shot evaluation.
 
@@ -207,7 +208,14 @@ def extract_shot_angles(landmarks, world_landmarks=None):
     Returns:
         Dict of angle measurements (some may be ``None``) and key positions.
     """
-    coords = world_landmarks if world_landmarks else None
+    # Image x/z use width units, while y is normalized by height. Put image
+    # coordinates on a common scale before measuring angles. World landmarks
+    # already use metres and must never be aspect-scaled.
+    image_coords = landmarks
+    if image_width and image_height:
+        aspect = image_height / image_width
+        image_coords = [{**lm, "y": lm["y"] * aspect} for lm in landmarks]
+    coords = world_landmarks if world_landmarks else image_coords
 
     # Phase/window detection positions are deliberately taken from SCREEN space
     # (normalized image coords, y grows downward): "wrist above shoulder" and
@@ -237,7 +245,7 @@ def extract_shot_angles(landmarks, world_landmarks=None):
         "left_knee": get_left_knee_angle(landmarks, coords),
         "right_knee": get_right_knee_angle(landmarks, coords),
         "head_alignment": get_head_alignment(landmarks),
-        "head_tilt": get_head_tilt(landmarks),
+        "head_tilt": get_head_tilt(image_coords),
         "spine_tilt": get_spine_tilt(landmarks, coords),
         "shoulder_width": get_shoulder_width(landmarks),
         "left_wrist_y": left_wrist_y,
@@ -249,16 +257,16 @@ def extract_shot_angles(landmarks, world_landmarks=None):
         "nose_y": nose_y,
         # True when joint angles came from metric 3D world landmarks. Downstream
         # checks use this to skip 2D-foreshortening compensation.
-        "is_world": bool(coords),
+        "is_world": bool(world_landmarks),
     }
 
 
 def channel_values(angle_sequence, key):
-    """Return the non-null, positive values of one angle channel over a sequence."""
+    """Return finite measured values, including genuine zero-degree angles."""
     out = []
     for f in angle_sequence:
         v = f.get(key)
-        if v is not None and v > 0:
+        if v is not None and np.isfinite(v):
             out.append(float(v))
     return out
 
@@ -270,46 +278,52 @@ def smooth_sequence(values, window=7, polyorder=2):
     average it suppresses noise without flattening the genuine peaks that the
     motion score and bowling-extension checks depend on.
 
-    ``None`` entries (untracked joints) stay ``None``; smoothing runs over the
-    valid samples only. Falls back to a moving average when there are too few
-    valid points for the filter window.
+    Missing entries stay missing and split the series into separate runs.
+    Runs too short for the filter are returned unchanged.
     """
     n = len(values)
     if n == 0:
         return []
 
-    valid_idx = [i for i, v in enumerate(values) if v is not None]
-    valid = [float(values[i]) for i in valid_idx]
+    from scipy.signal import savgol_filter
 
-    if len(valid) >= window:
-        from scipy.signal import savgol_filter
-
-        smoothed = savgol_filter(valid, window_length=window, polyorder=polyorder)
-    else:
-        # Too short for Sav-Gol — centered moving average as a fallback.
-        half = max(1, len(valid) // 2)
-        smoothed = [
-            float(np.mean(valid[max(0, i - half): i + half + 1]))
-            for i in range(len(valid))
-        ]
-
-    out = list(values)
-    for pos, v in zip(valid_idx, smoothed):
-        out[pos] = float(v)
+    # Missing frames are gaps in time. Do not concatenate the observations on
+    # either side and smooth across a movement we never measured.
+    out = [None] * n
+    start = 0
+    while start < n:
+        if values[start] is None or not np.isfinite(values[start]):
+            start += 1
+            continue
+        end = start
+        while end < n and values[end] is not None and np.isfinite(values[end]):
+            end += 1
+        valid = np.asarray(values[start:end], dtype=float)
+        if len(valid) >= window:
+            smoothed = savgol_filter(valid, window_length=window, polyorder=polyorder)
+        else:
+            # Short runs cannot support the fit; preserve their real extrema.
+            smoothed = valid
+        out[start:end] = [float(np.clip(v, 0.0, 180.0)) for v in smoothed]
+        start = end
     return out
 
 
-def resample_channel(values, target_len=50):
+def resample_channel(values, target_len=50, timestamps=None):
     """
     Resample a 1D sequence to ``target_len`` points via linear interpolation.
-    Drops ``None``/zero entries first. Returns a list of length ``target_len``
+    Preserve original sample times when interpolating gaps; zero is a valid
+    measurement. Optional timestamps are strictly increasing milliseconds.
+    Returns a list of length ``target_len``
     (all zeros if there aren't at least two valid points).
     """
-    valid = [float(v) for v in values if v is not None and v > 0]
+    valid_idx = [i for i, v in enumerate(values) if v is not None and np.isfinite(v)]
+    valid = [float(values[i]) for i in valid_idx]
     if len(valid) < 2:
         return [0.0] * target_len
-    xs = np.linspace(0.0, 1.0, num=len(valid))
-    xt = np.linspace(0.0, 1.0, num=target_len)
+    times = np.asarray(timestamps if timestamps is not None else range(len(values)), dtype=float)
+    xs = times[valid_idx]
+    xt = np.linspace(times[0], times[-1], num=target_len)
     return list(np.interp(xt, xs, valid))
 
 

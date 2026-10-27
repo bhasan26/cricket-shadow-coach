@@ -53,7 +53,7 @@ async function request(path, options = {}, timeoutMs = 10_000) {
  * @param {{signal?: AbortSignal}} options - Optional cancellation signal
  * @returns {Promise} Response containing overall score and feedback
  */
-export async function analyzeShotSequence(shotSequence, shotType = 'cover_drive', worldSequence = null, isRightHanded = true, { signal } = {}) {
+export async function analyzeShotSequence(shotSequence, shotType = 'cover_drive', worldSequence = null, isRightHanded = true, { signal, frameTimestamps, imageWidth, imageHeight } = {}) {
   return request('/analyze-shot', {
     method: 'POST',
     headers: {
@@ -65,6 +65,8 @@ export async function analyzeShotSequence(shotSequence, shotType = 'cover_drive'
       shot_type: shotType,
       is_right_handed: isRightHanded,
       ...(worldSequence ? { world_landmarks: worldSequence } : {}),
+      ...(frameTimestamps ? { frame_timestamps_ms: frameTimestamps } : {}),
+      ...(imageWidth && imageHeight ? { image_width: imageWidth, image_height: imageHeight } : {}),
     }),
   }, ANALYSIS_TIMEOUT_MS);
 }

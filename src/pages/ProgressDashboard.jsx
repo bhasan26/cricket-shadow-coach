@@ -2,13 +2,14 @@ import { useEffect, useRef, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Link } from 'react-router-dom';
 import { filterPractices, MAX_SAVED_PRACTICES, readCompletedPractices } from '../practiceArchive';
-import { downloadPracticeSummary, summarizeSet } from '../practiceSession';
+import { downloadPracticeSummary, practiceScoringVersion, summarizeSet } from '../practiceSession';
 import './ProgressDashboard.css';
 
 const score = value => value.toFixed(1);
 const changeText = value => `${value > 0 ? '+' : ''}${value.toFixed(1)}`;
 const cameraName = mode => mode === 'user' ? 'Front camera' : 'Rear camera';
 const handName = session => session.isRightHanded ? 'Right-handed' : 'Left-handed';
+const methodName = version => version === 'legacy' ? 'Earlier calculations' : version === '2' ? 'Updated calculations' : `Calculation method ${version}`;
 function dateLabel(timestamp) {
   const date = new Date(timestamp);
   return Number.isNaN(date.getTime()) ? 'Unknown date' : new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(date);
@@ -49,6 +50,7 @@ export default function ProgressDashboard() {
   const [practices, setPractices] = useState(readCompletedPractices);
   const [hand, setHand] = useState('all');
   const [camera, setCamera] = useState('all');
+  const [method, setMethod] = useState('all');
   const [selectedId, setSelectedId] = useState(null);
   const detailsRef = useRef(null);
 
@@ -62,7 +64,10 @@ export default function ProgressDashboard() {
     };
   }, []);
 
-  const filtered = filterPractices(practices, hand, camera);
+  const versions = [...new Set(practices.map(practiceScoringVersion))];
+  const filtered = filterPractices(practices, hand, camera)
+    .filter(session => method === 'all' || practiceScoringVersion(session) === method);
+  const mixedMethods = new Set(filtered.map(practiceScoringVersion)).size > 1;
   const selected = filtered.find(session => session.id === selectedId) || filtered[0];
   const latest = filtered[0];
   const first = selected && summarizeSet(selected.baseline);
@@ -93,6 +98,7 @@ export default function ProgressDashboard() {
           <div className="progress-filters">
             <label>Batting hand<select value={hand} onChange={event => { setHand(event.target.value); setSelectedId(null); }}><option value="all">All hands</option><option value="right">Right-handed</option><option value="left">Left-handed</option></select></label>
             <label>Camera selection<select value={camera} onChange={event => { setCamera(event.target.value); setSelectedId(null); }}><option value="all">All cameras</option><option value="environment">Rear camera</option><option value="user">Front camera</option></select></label>
+            {versions.length > 1 && <label>Calculation method<select value={method} onChange={event => { setMethod(event.target.value); setSelectedId(null); }}><option value="all">All methods</option>{versions.map(version => <option key={version} value={version}>{methodName(version)}</option>)}</select></label>}
             <p role="status">{filtered.length} matching {filtered.length === 1 ? 'practice' : 'practices'}</p>
           </div>
           {!filtered.length ? <section className="progress-card"><h2>No practices match these filters</h2><p>Choose another hand or camera to view your saved sessions.</p></section> : (
@@ -102,7 +108,7 @@ export default function ProgressDashboard() {
                 <div className="progress-card"><dt>Counted strokes</dt><dd>{filtered.length * 10}</dd></div>
                 <div className="progress-card"><dt>Latest second-set average</dt><dd>{score(latestSecond.average)}<small> / 100</small></dd></div>
               </dl>
-              <PracticeTrend sessions={filtered} />
+              {mixedMethods ? <section className="progress-card"><h2>Scoring changed between these practices</h2><p>Choose one calculation method above to view a comparable trend. Earlier and updated scores use different calculations.</p></section> : <PracticeTrend sessions={filtered} />}
               <section className="progress-card" aria-labelledby="saved-practices-title">
                 <h2 id="saved-practices-title">Completed practices</h2>
                 <div className="progress-table-scroll">
@@ -115,7 +121,7 @@ export default function ProgressDashboard() {
                       return (
                         <tr key={session.id} className={session.id === selected.id ? 'selected' : ''}>
                           <th scope="row">{dateLabel(session.completedAt)}</th><td>{score(before)}</td><td>{score(after)}</td><td>{changeText(after - before)}</td>
-                          <td>{handName(session)}<br />{cameraName(session.facingMode)}</td>
+                          <td>{handName(session)}<br />{cameraName(session.facingMode)}<br />{methodName(practiceScoringVersion(session))}</td>
                           <td><button type="button" className="progress-button" aria-pressed={session.id === selected.id} onClick={() => {
                             setSelectedId(session.id);
                             detailsRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });

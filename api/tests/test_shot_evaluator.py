@@ -105,10 +105,8 @@ def test_bowling_without_elbow_y_falls_back_low_confidence():
     assert result["confidence"] == "low"
 
 
-def test_bowling_leniency_applies_only_to_2d_angles():
-    # Identical elbow swing, measured once from legacy 2D landmarks and once
-    # from 3D world landmarks. The 20° foreshortening leniency must only be
-    # subtracted in the 2D case.
+def test_bowling_never_subtracts_an_arbitrary_perspective_offset():
+    # Geometry uncertainty reduces confidence, not the measured extension.
     def seq(is_world):
         frames = []
         for i in range(20):
@@ -119,8 +117,58 @@ def test_bowling_leniency_applies_only_to_2d_angles():
 
     ext_2d = evaluate_bowling_action(seq(False))["angle_scores"]["bowling_arm_extension"]
     ext_3d = evaluate_bowling_action(seq(True))["angle_scores"]["bowling_arm_extension"]
-    assert ext_3d > ext_2d
-    assert abs(ext_3d - ext_2d - 20.0) < 1e-6
+    assert ext_3d == ext_2d
+    assert evaluate_bowling_action(seq(False))["confidence"] == "low"
+
+
+def test_bowling_flexion_is_not_counted_as_extension():
+    seq = synthetic.bowling_action(extension_deg=25)
+    for frame in seq:
+        frame["right_elbow"] = 325 - frame["right_elbow"]
+    assert evaluate_bowling_action(seq)["angle_scores"]["bowling_arm_extension"] == 0
+
+
+def test_real_scoring_entrypoint_keeps_gather_outside_delivery_measurement():
+    seq, _ = _windowed_action([145 + 2.5 * i for i in range(11)])
+    measured = evaluate_shot(None, seq, shot_type="bowling_action")
+    assert abs(measured["angle_scores"]["bowling_arm_extension"] - 25) < 2
+
+
+def test_motion_score_is_invariant_when_frames_are_duplicated():
+    import numpy as np
+
+    seq = [_batting_frame(100 + 50 * np.sin(i * 0.9), 150, 165, 165) for i in range(25)]
+    duplicated = [frame for frame in seq for _ in range(4)]
+    assert calculate_motion_score(seq)[0] == calculate_motion_score(duplicated)[0]
+
+
+def test_upright_frames_are_included_in_average_spine_tilt():
+    seq = synthetic.bowling_action(extension_deg=5)
+    for frame in seq:
+        frame["spine_tilt"] = 0
+    seq[-1]["spine_tilt"] = 26
+    result = evaluate_bowling_action(seq)
+    assert abs(result["angle_scores"]["spine_tilt"] - 26 / len(seq)) < 1e-6
+
+
+def test_later_delivery_cannot_change_first_delivery_window():
+    first = synthetic.bowling_action(extension_deg=5)
+    second = synthetic.bowling_action(extension_deg=40)
+    for frame in second:
+        frame["right_wrist_y"] -= 0.2  # Higher wrist in a later, separate action.
+    result = evaluate_bowling_action(first + second)
+    assert abs(result["angle_scores"]["bowling_arm_extension"] - 5) <= 2
+
+
+def test_missing_tracking_is_not_turned_into_a_technique_score():
+    seq = synthetic.perfect_replay("cover_drive")
+    for frame in seq[:30]:
+        for key in ("left_elbow", "right_elbow", "left_knee", "right_knee"):
+            frame[key] = None
+    result = evaluate_shot(None, seq)
+    assert result["confidence"] == "low"
+    assert result["angle_scores"] == {}
+    assert result["tracking_quality"] == 25
 
 
 def test_bowling_delivery_phase_filtering_uses_raised_arm():

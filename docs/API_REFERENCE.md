@@ -18,6 +18,13 @@ production.
 - `shot_type` must be `cover_drive`, `straight_drive`, `pull_shot`,
   `defensive_block`, `flick_shot`, or `bowling_action`.
 - Batch frame analysis accepts at most 600 items. Invalid input returns HTTP 422.
+- Optional `image_width` and `image_height` must be supplied together as positive
+  integers (up to 16384). They correct image-space geometry; world coordinates
+  remain in metres.
+- Optional `frame_timestamps_ms` must have one finite, strictly increasing value
+  per shot-sequence frame. Their spacing is used during temporal resampling.
+- Shot responses include `scoring_version: "2"`. Clients should not combine
+  these scores with legacy calculations in a two-set or historical trend.
 
 The browser stops recordings at 15 seconds or 600 captured frames and applies
 a 30-second timeout to analysis requests. A client timeout or cancellation stops

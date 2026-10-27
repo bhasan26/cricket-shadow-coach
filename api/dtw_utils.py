@@ -53,9 +53,11 @@ def dtw_score(distance, path, k=DTW_SCORE_K):
     length yields the average per-step deviation (roughly in degrees for a single
     angle channel), which is comparable across recording durations.
     """
-    steps = max(1, len(path))
+    if not path or not np.isfinite(distance) or distance < 0:
+        return 0.0
+    steps = len(path)
     per_step = distance / steps
-    return float(max(0.0, 100.0 - per_step * k))
+    return float(np.clip(100.0 - per_step * k, 0.0, 100.0))
 
 
 # ─── CONSTRAINED ALIGNMENT ──────────────────────────────────────────────────

@@ -92,9 +92,51 @@ def test_resample_channel_insufficient_valid_points():
     assert resample_channel([None, 0], target_len=10) == [0.0] * 10
 
 
-def test_channel_values_filters_none_and_zero():
+def test_channel_values_filters_missing_but_preserves_zero():
     seq = [{"left_elbow": 100}, {"left_elbow": None}, {"left_elbow": 0}, {"left_elbow": 120}]
-    assert channel_values(seq, "left_elbow") == [100.0, 120.0]
+    assert channel_values(seq, "left_elbow") == [100.0, 0.0, 120.0]
+
+
+def test_zero_length_bone_is_missing_not_a_zero_degree_measurement():
+    assert calculate_angle((0, 0, 0), (0, 0, 0), (1, 0, 0)) is None
+    assert calculate_angle((1, 0, 0), (0, 0, 0), (2, 0, 0)) == 0
+
+
+def test_resampling_preserves_missing_frame_positions_and_zero_angles():
+    assert resample_channel([10, None, 30, 40], 4) == pytest.approx([10, 20, 30, 40])
+    assert resample_channel([0, 10, 20], 3) == pytest.approx([0, 10, 20])
+
+
+def test_resampling_uses_real_capture_times():
+    assert resample_channel([10, 20, 40], 4, timestamps=[0, 100, 300]) == pytest.approx([10, 20, 30, 40])
+
+
+def test_smoothing_does_not_join_opposite_sides_of_a_tracking_gap():
+    values = [10] * 8 + [None] * 5 + [100] * 8
+    smoothed = smooth_sequence(values)
+    assert smoothed[:8] == pytest.approx([10] * 8)
+    assert smoothed[8:13] == [None] * 5
+    assert smoothed[13:] == pytest.approx([100] * 8)
+
+
+@pytest.mark.parametrize("width,height", [(1000, 1000), (1280, 720), (720, 1280)])
+def test_image_geometry_corrects_for_aspect_ratio(width, height):
+    # Pixel-space vectors (100,100) and (100,0) form 45 degrees, in every
+    # aspect ratio. Treating x/y normalizations as equal units changes it.
+    lms = _landmarks({
+        11: {"x": 100 / width, "y": 100 / height},
+        13: {"x": 0, "y": 0}, 15: {"x": 100 / width, "y": 0},
+    })
+    measured = extract_shot_angles(lms, image_width=width, image_height=height)
+    assert measured["left_elbow"] == pytest.approx(45)
+    assert measured["is_world"] is False
+
+
+def test_world_geometry_is_not_aspect_scaled():
+    lms = _landmarks({11: {"x": 1, "y": 1}, 13: {"x": 0, "y": 0}, 15: {"x": 1, "y": 0}})
+    measured = extract_shot_angles(lms, world_landmarks=lms, image_width=1280, image_height=720)
+    assert measured["left_elbow"] == pytest.approx(45)
+    assert measured["is_world"] is True
 
 
 # ── head tilt ──────────────────────────────────────────────────────────────

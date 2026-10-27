@@ -25,3 +25,9 @@ def test_dtw_score_normalizes_by_path_length():
     short = dtw_score(distance=10.0, path=[0] * 10)
     long = dtw_score(distance=100.0, path=[0] * 100)
     assert abs(short - long) < 1e-6
+
+
+def test_dtw_score_does_not_award_points_to_an_invalid_alignment():
+    assert dtw_score(0, []) == 0
+    assert dtw_score(float("nan"), [(0, 0)]) == 0
+    assert dtw_score(-1, [(0, 0)]) == 0

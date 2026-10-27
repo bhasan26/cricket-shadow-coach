@@ -52,6 +52,13 @@ describe('guided practice', () => {
     expect(record(session, 'late', result, { practiceStage: 'repeat' })).toBe(session);
   });
 
+  it('does not combine old and corrected scoring methods in one comparison', () => {
+    const session = record(start(), 'rep-1', { ...result, scoring_version: '2' });
+    const next = record(session, 'rep-2', result);
+    expect(next.baseline).toHaveLength(1);
+    expect(next.notice).toContain('scoring method changed');
+  });
+
   it('falls back to a general rhythm cue when phase segmentation is incomplete', () => {
     const review = fillSet(start());
     const reps = review.baseline.map((rep, index) => index === 0 ? { ...rep, phases: {} } : rep);

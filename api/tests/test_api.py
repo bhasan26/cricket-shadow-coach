@@ -42,6 +42,25 @@ def test_happy_path_returns_score():
     body = r.json()
     assert "score" in body
     assert "tracking_quality" in body
+    assert body["scoring_version"] == "2"
+
+
+@pytest.mark.parametrize("timestamps", [[0], [0, 0], [10, 0], [0, "Infinity"]])
+def test_invalid_capture_timestamps_are_rejected(timestamps):
+    payload = {"shot_sequence": [_frame(), _frame()], "frame_timestamps_ms": timestamps}
+    assert client.post("/api/analyze-shot", json=payload).status_code == 422
+
+
+def test_capture_times_and_image_dimensions_are_accepted():
+    payload = {"shot_sequence": [_frame() for _ in range(12)],
+               "frame_timestamps_ms": [i * 33.3 for i in range(12)],
+               "image_width": 1280, "image_height": 720}
+    assert client.post("/api/analyze-shot", json=payload).status_code == 200
+
+
+def test_image_dimensions_must_be_a_complete_pair():
+    payload = {"shot_sequence": [_frame()], "image_width": 1280}
+    assert client.post("/api/analyze-shot", json=payload).status_code == 422
 
 
 @pytest.mark.parametrize("world", [[], [[]], [_frame(), _frame()]])
@@ -90,7 +109,7 @@ def test_single_frame_endpoint_scores_angles(monkeypatch):
 
     ideal = get_ideal_angle_sequence("cover_drive")[0]
     angles = {key: ideal[key] for key in ("left_elbow", "right_elbow", "left_knee", "right_knee")}
-    monkeypatch.setattr(index, "extract_shot_angles", lambda frame: angles)
+    monkeypatch.setattr(index, "extract_shot_angles", lambda frame, **kwargs: angles)
     response = client.post("/api/analyze-frame", json={"poseLandmarks": _frame()})
     assert response.status_code == 200
     assert response.json()["score"] == 100

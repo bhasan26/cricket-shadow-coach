@@ -3,7 +3,7 @@ import { Helmet } from 'react-helmet-async';
 import { createPoseDetector } from './poseUtils';
 import { PoseSmoother } from './filters';
 import { getFramingHint, FRAMING_HINT_HOLD_MS } from './framing';
-import { copyLandmarks, MAX_RECORDING_FRAMES, MAX_RECORDING_MS } from './recording';
+import { appendRecordingFrame, MAX_RECORDING_FRAMES, MAX_RECORDING_MS } from './recording';
 import { classifyShot, isExperimentalEnabled } from './shotClassifier';
 import { drawSkeleton, calculateAngleJS, calculateSpineTiltJS } from './drawSkeleton';
 import { analyzeShotSequence, checkAPIHealth, fetchShots } from './api';
@@ -136,7 +136,7 @@ function CameraFeed() {
   // Live client-side telemetry — batched into one object and updated at most every
   // ~100ms (see lastUiUpdateRef) so 30–60fps pose frames don't thrash React.
   const [telemetry, setTelemetry] = useState({
-    le: 0, re: 0, lk: 0, rk: 0, st: 0, frameCount: 0, bufferedFrameCount: 0, fps: 0,
+    le: null, re: null, lk: null, rk: null, st: null, frameCount: 0, bufferedFrameCount: 0, fps: 0,
   });
   const { le: liveLeftElbow, re: liveRightElbow, lk: liveLeftKnee, rk: liveRightKnee, st: liveSpineTilt, fps: liveFps } = telemetry;
   const frameCount = telemetry.frameCount;
@@ -210,6 +210,8 @@ function CameraFeed() {
       isRightHanded: isRightHandedRef.current,
       name: availableShots[selectedShot]?.name || selectedShot,
       emoji: availableShots[selectedShot]?.emoji || '🏏',
+      imageWidth: videoRef.current?.videoWidth,
+      imageHeight: videoRef.current?.videoHeight,
     };
     setCanRetryAnalysis(false);
     setRecordingElapsed(0);
@@ -246,7 +248,12 @@ function CameraFeed() {
       // Include world landmarks only if every frame captured them.
       const worldFrames = frames.map(f => f.world);
       const worldSequence = worldFrames.every(Boolean) ? worldFrames : null;
-      const result = await analyzeShotSequence(sequence, shotType, worldSequence, isRightHanded, { signal: controller.signal });
+      const result = await analyzeShotSequence(sequence, shotType, worldSequence, isRightHanded, {
+        signal: controller.signal,
+        frameTimestamps: frames.map(frame => frame.timestamp),
+        imageWidth: attempt.imageWidth,
+        imageHeight: attempt.imageHeight,
+      });
       if (!mountedRef.current || controller.signal.aborted) return;
 
       // EXPERIMENTAL shot verification (in-browser ONNX classifier, 62.6%
@@ -407,7 +414,23 @@ function CameraFeed() {
   // never changes — this is what keeps the MediaPipe detector effect from tearing
   // down and rebuilding the detector on every analysis / selection change.
   const handlePoseLandmarks = useCallback((landmarks, worldLandmarks) => {
-    if (!landmarks) return;
+    if (!landmarks) {
+      anglesBufferRef.current = [];
+      const canvas = canvasRef.current;
+      if (canvas) canvas.getContext('2d')?.clearRect(0, 0, canvas.width, canvas.height);
+      if (isRecordingRef.current) {
+        if (appendRecordingFrame(frameBufferRef.current, null, null)) handleStopRef.current();
+      } else {
+        autoRecordStateRef.current = 'IDLE';
+      }
+      const now = Date.now();
+      if (now - lastUiUpdateRef.current >= 100) {
+        lastUiUpdateRef.current = now;
+        setTelemetry(previous => ({ ...previous, le: null, re: null, lk: null, rk: null, st: null,
+          bufferedFrameCount: frameBufferRef.current.length }));
+      }
+      return;
+    }
 
     const autoRecordEnabled = autoRecordEnabledRef.current;
     const isAnalyzing = isAnalyzingRef.current;
@@ -425,11 +448,13 @@ function CameraFeed() {
         )
       : null;
 
-    const le = calculateAngleJS(landmarks[11], landmarks[13], landmarks[15]);
-    const re = calculateAngleJS(landmarks[12], landmarks[14], landmarks[16]);
-    const lk = calculateAngleJS(landmarks[23], landmarks[25], landmarks[27]);
-    const rk = calculateAngleJS(landmarks[24], landmarks[26], landmarks[28]);
-    const st = calculateSpineTiltJS(landmarks);
+    const video = videoRef.current;
+    const aspect = video?.videoWidth ? video.videoHeight / video.videoWidth : 1;
+    const le = calculateAngleJS(landmarks[11], landmarks[13], landmarks[15], aspect);
+    const re = calculateAngleJS(landmarks[12], landmarks[14], landmarks[16], aspect);
+    const lk = calculateAngleJS(landmarks[23], landmarks[25], landmarks[27], aspect);
+    const rk = calculateAngleJS(landmarks[24], landmarks[26], landmarks[28], aspect);
+    const st = calculateSpineTiltJS(landmarks, aspect);
 
     // Canvas drawing runs every frame (no React involved).
     const canvas = canvasRef.current;
@@ -456,13 +481,7 @@ function CameraFeed() {
     }
 
     if (isRecordingRef.current) {
-      frameBufferRef.current.push({
-        landmarks: copyLandmarks(landmarks),
-        // Metric 3D world landmarks (One Euro smoothed) power accurate backend angles.
-        world: smoothedWorld,
-        timestamp: Date.now(),
-      });
-      if (frameBufferRef.current.length >= MAX_RECORDING_FRAMES) {
+      if (appendRecordingFrame(frameBufferRef.current, landmarks, smoothedWorld)) {
         handleStopRef.current();
         return;
       }
@@ -503,6 +522,11 @@ function CameraFeed() {
     }
 
     if (autoRecordEnabled && !isAnalyzing && !recordingAttemptRef.current?.frames && canRecordPractice()) {
+      if (![le, re, lk, rk, st].every(Number.isFinite)) {
+        anglesBufferRef.current = [];
+        if (!isRecordingRef.current) autoRecordStateRef.current = 'IDLE';
+        return;
+      }
       const buffer = anglesBufferRef.current;
       buffer.push({ le, re, lk, rk, st, time: Date.now() });
       if (buffer.length > STABILITY_BUFFER_SIZE) {
@@ -711,6 +735,7 @@ function CameraFeed() {
   }, [cameraReady, poseRetryToken]);
 
   const getGaugeColor = (type, val) => {
+    if (val == null) return '#64748b';
     if (type.includes('elbow')) {
       if (val >= 145 && val <= 175) return '#00f5a0'; // Electric Mint Green
       if (val >= 130 && val <= 180) return '#ff9f0d'; // Amber
@@ -737,7 +762,7 @@ function CameraFeed() {
         <div className="gauge-row-head" style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '4px' }}>
           <span style={{ color: '#94a3b8', fontWeight: 500 }}>{label}</span>
           <span className="mono-telemetry" style={{ color: color, fontWeight: 700 }}>
-            {val}° <span style={{ fontSize: '0.7rem', color: '#475569', fontWeight: 400 }}>({targetRange})</span>
+            {val == null ? '—' : `${val}°`} <span style={{ fontSize: '0.7rem', color: '#475569', fontWeight: 400 }}>({targetRange})</span>
           </span>
         </div>
         <div className="gauge-bar">
@@ -981,8 +1006,8 @@ function CameraFeed() {
           <div className="key-stats-strip">
             {(selectedShot === 'bowling_action'
               ? [
-                  { label: 'Bowl Elbow', val: liveRightElbow || liveLeftElbow, type: 'elbow' },
-                  { label: 'Brace Knee', val: liveLeftKnee || liveRightKnee, type: 'knee' },
+                  { label: 'Bowl Elbow', val: liveRightElbow ?? liveLeftElbow, type: 'elbow' },
+                  { label: 'Brace Knee', val: liveLeftKnee ?? liveRightKnee, type: 'knee' },
                   { label: 'Spine', val: liveSpineTilt, type: 'spine' },
                 ]
               : [
@@ -993,7 +1018,7 @@ function CameraFeed() {
             ).map((s) => (
               <div className="key-stat" key={s.label}>
                 <span className="key-stat-value mono-telemetry" style={{ color: getGaugeColor(s.type, s.val) }}>
-                  {s.val}°
+                  {s.val == null ? '—' : `${s.val}°`}
                 </span>
                 <span className="key-stat-label">{s.label}</span>
               </div>
@@ -1027,10 +1052,10 @@ function CameraFeed() {
               {selectedShot === 'bowling_action' ? (
                 <>
                   <div>
-                    {renderGauge('Bowling Arm Elbow', liveRightElbow || liveLeftElbow, 180, 'elbow', '15° Limit')}
+                    {renderGauge('Bowling Arm Elbow', liveRightElbow ?? liveLeftElbow, 180, 'elbow', '15° Limit')}
                   </div>
                   <div>
-                    {renderGauge('Brace Leg Knee', liveLeftKnee || liveRightKnee, 180, 'knee', '135°-155°')}
+                    {renderGauge('Brace Leg Knee', liveLeftKnee ?? liveRightKnee, 180, 'knee', '135°-155°')}
                   </div>
                   <div className="telemetry-grid-full">
                     {renderGauge('Spine Tilt (Balance)', liveSpineTilt, 60, 'spine', 'Target: <22°')}

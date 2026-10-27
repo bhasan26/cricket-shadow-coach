@@ -51,4 +51,16 @@ describe('practice progress dashboard', () => {
     expect(screen.getByRole('heading', { name: 'No practices match these filters' })).toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'Practice details' })).not.toBeInTheDocument();
   });
+
+  it('separates trends when saved practices use different scoring methods', () => {
+    const updated = completedPractice({ id: 'updated' });
+    for (const rep of [...updated.baseline, ...updated.repeat]) rep.scoringVersion = '2';
+    localStorage.setItem(PRACTICE_ARCHIVE_KEY, JSON.stringify([completedPractice(), updated]));
+    openProgress();
+    expect(screen.getByRole('heading', { name: 'Scoring changed between these practices' })).toBeInTheDocument();
+    expect(screen.queryByRole('img', { name: 'Average reference match by practice' })).not.toBeInTheDocument();
+    fireEvent.change(screen.getByRole('combobox', { name: 'Calculation method' }), { target: { value: '2' } });
+    expect(screen.getByRole('img', { name: 'Average reference match by practice' })).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('1 matching practice');
+  });
 });

@@ -59,7 +59,9 @@ afterEach(() => {
 async function openCamera() {
   render(<MemoryRouter><HelmetProvider><CameraFeed /></HelmetProvider></MemoryRouter>);
   await act(async () => {});
-  fireEvent.loadedMetadata(document.querySelector('video'));
+  const video = document.querySelector('video');
+  Object.defineProperties(video, { videoWidth: { value: 1280 }, videoHeight: { value: 720 } });
+  fireEvent.loadedMetadata(video);
   await act(async () => {});
 }
 
@@ -97,6 +99,21 @@ describe('practice recording and recovery', () => {
     await act(async () => { await vi.advanceTimersByTimeAsync(MAX_RECORDING_MS); });
     expect(analyzeShotSequence).toHaveBeenCalledOnce();
     expect(analyzeShotSequence.mock.calls[0][0]).toHaveLength(1);
+  });
+
+  it('sends lost-pose frames, image geometry, and actual monotonic times to scoring', async () => {
+    await openCamera();
+    fireEvent.click(screen.getByRole('button', { name: 'Start Practice' }));
+    act(() => { onPose(frame(), null); onPose(null, null); onPose(frame(), null); });
+    fireEvent.click(screen.getByRole('button', { name: 'Stop & Analyze Action' }));
+    await act(async () => {});
+    const [sequence, , , , options] = analyzeShotSequence.mock.calls[0];
+    expect(sequence).toHaveLength(3);
+    expect(sequence[1].every(point => point.visibility === 0)).toBe(true);
+    expect(options.imageWidth).toBe(1280);
+    expect(options.imageHeight).toBe(720);
+    expect(options.frameTimestamps).toHaveLength(3);
+    expect(options.frameTimestamps[2]).toBeGreaterThan(options.frameTimestamps[1]);
   });
 
   it('retries the same captured attempt and original drill after a network failure', async () => {

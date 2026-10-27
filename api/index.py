@@ -13,7 +13,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 # Import local modules
 from angle_utils import extract_shot_angles
-from shot_evaluator import evaluate_frame, evaluate_shot
+from shot_evaluator import SCORING_VERSION, evaluate_frame, evaluate_shot
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("cricket-coach")
@@ -73,6 +73,14 @@ def _validate_frame(frame: list[Landmark]) -> list[Landmark]:
 
 class FramePayload(BaseModel):
     poseLandmarks: list[Landmark]
+    image_width: int | None = Field(default=None, gt=0, le=16384)
+    image_height: int | None = Field(default=None, gt=0, le=16384)
+
+    @model_validator(mode="after")
+    def check_dimensions(self):
+        if (self.image_width is None) != (self.image_height is None):
+            raise ValueError("Supply both image_width and image_height")
+        return self
 
     @field_validator("poseLandmarks")
     @classmethod
@@ -90,6 +98,9 @@ class ShotSequencePayload(BaseModel):
     # Optional MediaPipe world landmarks (metric 3D). When present, backend angles
     # are computed from these instead of the 2D image projection.
     world_landmarks: list[list[Landmark]] | None = Field(default=None, max_length=MAX_SEQUENCE_FRAMES)
+    image_width: int | None = Field(default=None, gt=0, le=16384)
+    image_height: int | None = Field(default=None, gt=0, le=16384)
+    frame_timestamps_ms: list[FiniteFloat] | None = Field(default=None, max_length=MAX_SEQUENCE_FRAMES)
 
     @field_validator("shot_sequence", "world_landmarks")
     @classmethod
@@ -104,6 +115,13 @@ class ShotSequencePayload(BaseModel):
     def check_alignment(self):
         if self.world_landmarks is not None and len(self.world_landmarks) != len(self.shot_sequence):
             raise ValueError("World landmarks must have one frame per shot-sequence frame")
+        if (self.image_width is None) != (self.image_height is None):
+            raise ValueError("Supply both image_width and image_height")
+        if self.frame_timestamps_ms is not None:
+            if len(self.frame_timestamps_ms) != len(self.shot_sequence):
+                raise ValueError("Timestamps must align with shot-sequence frames")
+            if any(b <= a for a, b in zip(self.frame_timestamps_ms, self.frame_timestamps_ms[1:])):
+                raise ValueError("Frame timestamps must be strictly increasing")
         return self
 
 
@@ -117,6 +135,7 @@ class ShotAnalysisResponse(BaseModel):
     score: int
     feedback: str
     is_good_shot: bool
+    scoring_version: str = SCORING_VERSION
     shot_type: str = "cover_drive"
     shot_name: str = "Cover Drive"
     angle_scores: dict = {}
@@ -149,7 +168,8 @@ async def health_check():
 def analyze_frame(payload: FramePayload):
     """Analyze a single frame of pose data."""
     try:
-        angles = extract_shot_angles(_frame_to_dicts(payload.poseLandmarks))
+        angles = extract_shot_angles(_frame_to_dicts(payload.poseLandmarks),
+                                     image_width=payload.image_width, image_height=payload.image_height)
         result = evaluate_frame(angles)
         return FrameAnalysisResponse(
             score=result.get("score", 0),
@@ -177,7 +197,11 @@ def analyze_shot_sequence(payload: ShotSequencePayload):
             wl = None
             if world and i < len(world) and len(world[i]) == POSE_LANDMARK_COUNT:
                 wl = _frame_to_dicts(world[i])
-            angle_sequence.append(extract_shot_angles(_frame_to_dicts(frame), world_landmarks=wl))
+            angles = extract_shot_angles(_frame_to_dicts(frame), world_landmarks=wl,
+                                         image_width=payload.image_width, image_height=payload.image_height)
+            if payload.frame_timestamps_ms is not None:
+                angles["timestamp_ms"] = payload.frame_timestamps_ms[i]
+            angle_sequence.append(angles)
 
         result = evaluate_shot(
             None, angle_sequence,
@@ -209,7 +233,8 @@ def batch_analyze(payloads: Annotated[list[FramePayload], Body(max_length=MAX_SE
     try:
         results = []
         for payload in payloads:
-            angles = extract_shot_angles(_frame_to_dicts(payload.poseLandmarks))
+            angles = extract_shot_angles(_frame_to_dicts(payload.poseLandmarks),
+                                         image_width=payload.image_width, image_height=payload.image_height)
             result = evaluate_frame(angles)
             results.append({
                 "score": result.get("score", 0),

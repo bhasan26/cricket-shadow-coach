@@ -133,6 +133,7 @@ tracked in git (attach it to a GitHub Release if needed).
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — system design & algorithms
 - [docs/VALIDATION_PLAN.md](docs/VALIDATION_PLAN.md) — real-player evaluation and device acceptance checks
 - [docs/PILOT_PROTOCOL.md](docs/PILOT_PROTOCOL.md) — ready-to-run cover-drive pilot and observation form
+- [docs/CALCULATION_AUDIT.md](docs/CALCULATION_AUDIT.md) — mathematical corrections, regression cases, and scoring-method version
 - [docs/API_REFERENCE.md](docs/API_REFERENCE.md) — endpoint reference
 - [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) — production deployment
 - [docs/INDEX.md](docs/INDEX.md) — full docs table of contents

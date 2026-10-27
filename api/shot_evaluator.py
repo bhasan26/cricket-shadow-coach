@@ -11,6 +11,8 @@ Scoring pipeline (batting):
      frame rate don't skew the comparison, then score with length-normalized DTW.
 """
 
+from itertools import pairwise
+
 import numpy as np
 
 from angle_utils import (
@@ -44,6 +46,7 @@ SMOOTH_KEYS = DTW_KEYS + ["spine_tilt"]
 MATCH_KEYS = DTW_KEYS + ["spine_tilt"]
 # Number of points every channel is resampled to before DTW.
 RESAMPLE_LEN = 50
+SCORING_VERSION = "2"
 
 # A shot-identification result only overrides the user's selection when the best
 # match beats the runner-up by this margin AND fits well enough in absolute
@@ -74,10 +77,10 @@ HEAD_TILT_WARN_DEGREES = 20.0
 MISMATCH_SCORE_CAP = 45
 
 BOWLING_DISCLAIMER = (
-    "Indicative screen only — a single 2D camera cannot match lab-grade 3D motion "
-    "capture. Elbow extension is measured in the image plane, so perspective can "
-    "add or remove tens of degrees. Use this as practice guidance, not an official "
-    "legality verdict."
+    "Indicative screen only — single-camera pose estimates cannot establish bowling "
+    "legality. The delivery window uses an estimated wrist-high point, not a detected "
+    "ball release. Perspective and tracking error can change the measurement in "
+    "either direction. Use this as practice guidance, not an official verdict."
 )
 
 
@@ -101,12 +104,33 @@ def smooth_angle_sequence(angle_sequence):
     return out
 
 
+def _sequence_timestamps(angle_sequence):
+    times = [frame.get("timestamp_ms") for frame in angle_sequence]
+    if any(value is None or not np.isfinite(value) for value in times):
+        return None
+    return times if all(b > a for a, b in pairwise(times)) else None
+
+
+def normalize_batting_angles(angle_sequence):
+    """Resample onto one timeline before smoothing, so filter width is FPS-independent."""
+    timestamps = _sequence_timestamps(angle_sequence)
+    channels = {}
+    for key in [*SMOOTH_KEYS, "head_tilt"]:
+        values = [frame.get(key) for frame in angle_sequence]
+        if len(channel_values(angle_sequence, key)) < 2:
+            channels[key] = [None] * RESAMPLE_LEN
+        else:
+            channels[key] = resample_channel(values, RESAMPLE_LEN, timestamps)
+    normalized = [{key: values[i] for key, values in channels.items()} for i in range(RESAMPLE_LEN)]
+    return smooth_angle_sequence(normalized)
+
+
 def tracking_quality(angle_sequence):
     """Percentage of frames in which all key joint angles were confidently tracked."""
     if not angle_sequence:
         return 0.0
     full = sum(
-        1 for f in angle_sequence if all(f.get(k) is not None for k in DTW_KEYS)
+        1 for f in angle_sequence if all(f.get(k) is not None and np.isfinite(f[k]) for k in DTW_KEYS)
     )
     return round(100.0 * full / len(angle_sequence), 1)
 
@@ -154,10 +178,8 @@ def calculate_motion_score(angle_sequence):
     if len(angle_sequence) < 3:
         return 0, ["Too few frames — record a full shot"]
 
-    # Range of motion and smoothness per channel (ignoring untracked frames).
-    # Both are frame-count invariant, so scores are comparable across recording
-    # durations and frame rates (a 40-frame and a 200-frame clip of the same
-    # swing land in the same place).
+    # Derivatives per raw frame depend on FPS. Compare change on a fixed
+    # normalized timeline, so duplicating frames cannot turn flailing smooth.
     ranges = []
     jerk = []
     for key in DTW_KEYS:
@@ -165,7 +187,9 @@ def calculate_motion_score(angle_sequence):
         if len(values) >= 2:
             ranges.append(max(values) - min(values))
         if len(values) > 2:
-            jerk.append(float(np.std(np.diff(values))))
+            normalized = resample_channel([f.get(key) for f in angle_sequence], RESAMPLE_LEN,
+                                          timestamps=_sequence_timestamps(angle_sequence))
+            jerk.append(float(np.std(np.diff(normalized))))
     avg_range = float(np.mean(ranges)) if ranges else 0.0
     avg_jerk = float(np.mean(jerk)) if jerk else 0.0
 
@@ -192,6 +216,8 @@ def check_standing_pose(angle_sequence):
     sample = angle_sequence[: min(5, len(angle_sequence))]
     left = channel_values(sample, "left_knee")
     right = channel_values(sample, "right_knee")
+    if not left or not right:
+        return False, "Setup knees were not tracked — keep your full body in view"
     avg_left_knee = float(np.mean(left)) if left else 180.0
     avg_right_knee = float(np.mean(right)) if right else 180.0
 
@@ -244,8 +270,8 @@ def evaluate_batting_biomechanics(angle_sequence, is_right_handed=True, age_grou
         knee_threshold = get_adaptive_threshold(age_group, "batter_knee")
         if min_front_knee < knee_threshold:
             feedback.append(
-                f"⚠️ Knee Flex Warning: Front knee collapsed below {knee_threshold}° "
-                f"(measured {min_front_knee:.1f}°). A collapsed knee destroys shot control and balance."
+                f"Front-knee bend reached {min_front_knee:.1f}°. Review your balance "
+                "alongside the stroke video; this angle alone does not establish a technique fault."
             )
 
     # Head cock in degrees, relative to the player's own shoulder line. This
@@ -282,9 +308,15 @@ def _bowling_measurement_window(angle_sequence, arm_key, wrist_y_key, shoulder_y
     if not any(elbow_y_key in f for f in angle_sequence):
         return [], 0
 
+    def tracked(frame):
+        return all(frame.get(key) is not None and np.isfinite(frame[key])
+                   for key in (arm_key, wrist_y_key, shoulder_y_key, elbow_y_key))
+
     start = None
     for i in range(1, len(angle_sequence)):
         prev, cur = angle_sequence[i - 1], angle_sequence[i]
+        if not tracked(prev) or not tracked(cur):
+            continue
         prev_below = prev.get(elbow_y_key, 1.0) >= prev.get(shoulder_y_key, 0.5)
         now_above = cur.get(elbow_y_key, 1.0) < cur.get(shoulder_y_key, 0.5)
         wrist_leading = cur.get(wrist_y_key, 1.0) <= cur.get(elbow_y_key, 1.0)
@@ -294,16 +326,24 @@ def _bowling_measurement_window(angle_sequence, arm_key, wrist_y_key, shoulder_y
     if start is None:
         return [], 0
 
-    # Release = highest wrist position from the start onward.
+    # Stop at the end of this arm swing. A later second delivery must not
+    # redefine this one's release proxy or extend its measurement window.
+    end = next((i for i in range(start + 1, len(angle_sequence))
+                if tracked(angle_sequence[i]) and angle_sequence[i][elbow_y_key] >= angle_sequence[i][shoulder_y_key]),
+               len(angle_sequence))
+    observed = [i for i in range(start, end) if tracked(angle_sequence[i])]
+    if len(observed) < 2:
+        return [], 0
+    # Highest tracked wrist is only a release proxy, not a detected release.
     release = min(
-        range(start, len(angle_sequence)),
+        observed,
         key=lambda i: angle_sequence[i].get(wrist_y_key, 1.0),
     )
     if release <= start:
-        release = min(len(angle_sequence) - 1, start + 1)
+        release = observed[1]
 
     window = angle_sequence[start: release + 1]
-    angles = [f[arm_key] for f in window if f.get(arm_key) and f[arm_key] > 0]
+    angles = channel_values(window, arm_key)
     return angles, len(window)
 
 
@@ -320,6 +360,7 @@ def evaluate_bowling_action(angle_sequence, is_right_handed=None, age_group="adu
         "angle_scores": {},
         "disclaimer": BOWLING_DISCLAIMER,
         "tracking_quality": tracking_quality(angle_sequence),
+        "confidence": "low",
     }
 
     if len(angle_sequence) < 3:
@@ -364,7 +405,7 @@ def evaluate_bowling_action(angle_sequence, is_right_handed=None, age_group="adu
         for f in angle_sequence:
             if f.get(wrist_y_key, 1.0) < f.get(shoulder_y_key, 0.5):
                 elbow_val = f.get(arm_key)
-                if elbow_val and elbow_val > 0:
+                if elbow_val is not None and np.isfinite(elbow_val):
                     delivery_frames.append(elbow_val)
         if not delivery_frames:
             delivery_frames = channel_values(angle_sequence, arm_key)
@@ -393,22 +434,25 @@ def evaluate_bowling_action(angle_sequence, is_right_handed=None, age_group="adu
     min_elbow = float(min(smoothed))
     max_elbow = float(max(smoothed))
 
-    # Were angles measured from metric 3D world landmarks? (Legacy clients only
-    # send 2D image landmarks, where perspective foreshortening inflates the
-    # apparent extension — compensate with a leniency offset for those only.)
+    # Perspective error can have either sign. Subtracting a fixed 20 degrees
+    # made a measured 25-degree extension read as five; it is not calibration.
     world_frames = sum(1 for f in angle_sequence if f.get("is_world"))
     angles_are_3d = world_frames >= len(angle_sequence) / 2
-    leniency = 0.0 if angles_are_3d else 20.0
-
-    raw_extension = max_elbow - min_elbow
-    elbow_extension = min(180.0, max(0.0, raw_extension - leniency))
+    # Extension is straightening in time order, not an unordered max-min range:
+    # an arm only flexing from 170 to 145 degrees has zero observed extension.
+    running_min = float(smoothed[0])
+    elbow_extension = 0.0
+    for angle in smoothed:
+        running_min = min(running_min, float(angle))
+        elbow_extension = max(elbow_extension, float(angle) - running_min)
+    elbow_extension = min(180.0, elbow_extension)
 
     spine_tilts = channel_values(angle_sequence, "spine_tilt")
     avg_spine_tilt = float(np.mean(spine_tilts)) if spine_tilts else 0.0
 
     front_knee_key = "left_knee" if is_right_handed else "right_knee"
     front_knees = channel_values(angle_sequence, front_knee_key)
-    avg_front_knee = float(np.mean(front_knees[-5:])) if len(front_knees) >= 5 else 180.0
+    avg_front_knee = float(np.mean(front_knees[-5:])) if front_knees else None
 
     is_legal = elbow_extension <= 15.0
 
@@ -416,7 +460,9 @@ def evaluate_bowling_action(angle_sequence, is_right_handed=None, age_group="adu
     # and well-tracked joints. 30fps webcam analysis is never authoritative —
     # this flags when it isn't even a reliable estimate.
     confidence = "normal"
-    if not window_found or window_frame_count < 5 or base["tracking_quality"] < 60:
+    if (not angles_are_3d or not window_found or len(delivery_frames) < 5
+            or 100 * len(delivery_frames) / max(1, window_frame_count) < 60
+            or base["tracking_quality"] < 60):
         confidence = "low"
 
     if is_legal:
@@ -424,7 +470,7 @@ def evaluate_bowling_action(angle_sequence, is_right_handed=None, age_group="adu
         verdict = f"✅ Estimated extension {elbow_extension:.1f}° ({arm_name})"
         feedback = (
             f"{verdict} | Within the ICC Rule 11.1 15° guideline "
-            f"(elbow went from {min_elbow:.1f}° to {max_elbow:.1f}° in the delivery window). "
+            f"(observed elbow angles ranged from {min_elbow:.1f}° to {max_elbow:.1f}°). "
             f"Smooth release with good straight-arm discipline."
         )
     else:
@@ -432,9 +478,9 @@ def evaluate_bowling_action(angle_sequence, is_right_handed=None, age_group="adu
         verdict = f"⚠️ Estimated extension {elbow_extension:.1f}° ({arm_name})"
         feedback = (
             f"{verdict} | Exceeds the ICC Rule 11.1 15° guideline "
-            f"(from {min_elbow:.1f}° to {max_elbow:.1f}° in the delivery window). "
+            f"(observed angles ranged from {min_elbow:.1f}° to {max_elbow:.1f}°). "
             f"Indicative only; not an official assessment. "
-            f"Keep your arm locked and rotate from the shoulder."
+            f"Review a clearly filmed delivery with a coach."
         )
 
     if confidence == "low":
@@ -446,26 +492,17 @@ def evaluate_bowling_action(angle_sequence, is_right_handed=None, age_group="adu
     coaching_tips = []
     if avg_spine_tilt > 25:
         coaching_tips.append(
-            "⚠️ Lumbar Spine Strain Risk: Significant lateral tilt (>25°) detected — "
-            "mixed delivery action can cause high torsional lumbar stress."
+            f"Estimated torso lean averaged {avg_spine_tilt:.1f}°. "
+            "This measurement does not distinguish lateral lean from forward lean."
         )
     knee_threshold = get_adaptive_threshold(age_group, "bowler_knee")
-    if avg_front_knee < knee_threshold:
+    if avg_front_knee is not None and avg_front_knee < knee_threshold:
         coaching_tips.append(
-            f"⚠️ Knee Valgus Instability: Front knee collapsed below {knee_threshold}° "
-            f"(measured {avg_front_knee:.1f}°), transferring force to the lumbar spine."
+            f"Late front-knee angle averaged {avg_front_knee:.1f}°. "
+            "Knee flexion alone cannot measure sideways knee collapse or injury risk."
         )
-    elif avg_front_knee >= 165:
-        coaching_tips.append("✅ Braced-leg landing is excellent, providing maximum release height and safety.")
-
-    nose_ys = [f.get("nose_y", 0) for f in angle_sequence if f.get("nose_y", 0) > 0]
-    avg_nose_y = float(np.mean(nose_ys)) if nose_ys else 0.0
-    min_wrist_y = min([f.get(wrist_y_key, 1.0) for f in angle_sequence]) if angle_sequence else 1.0
-    if avg_nose_y > 0 and min_wrist_y > avg_nose_y:
-        coaching_tips.append(
-            "⚠️ Shoulder Impingement Hazard: Release height fell below head height "
-            "(round-arm action), placing high shear stress on the rotator cuff."
-        )
+    elif avg_front_knee is not None and avg_front_knee >= 165:
+        coaching_tips.append(f"Late front-knee angle averaged {avg_front_knee:.1f}° (near straight).")
 
     if coaching_tips:
         feedback += " Coaching tips: " + " ".join(coaching_tips[:2])
@@ -540,7 +577,8 @@ def score_phases(angle_sequence, ideal_seq, is_right_handed=True):
     no recognizable swing (whole-sequence DTW score still applies).
     """
     front_key = "left_elbow" if is_right_handed else "right_elbow"
-    user_front = resample_channel([f.get(front_key) for f in angle_sequence], RESAMPLE_LEN)
+    timestamps = _sequence_timestamps(angle_sequence)
+    user_front = resample_channel([f.get(front_key) for f in angle_sequence], RESAMPLE_LEN, timestamps)
     ideal_front = resample_channel([f.get(front_key, 0) for f in ideal_seq], RESAMPLE_LEN)
 
     user_phases = segment_phases(user_front)
@@ -549,7 +587,7 @@ def score_phases(angle_sequence, ideal_seq, is_right_handed=True):
         return {}
 
     user_channels = {
-        k: resample_channel([f.get(k) for f in angle_sequence], RESAMPLE_LEN) for k in DTW_KEYS
+        k: resample_channel([f.get(k) for f in angle_sequence], RESAMPLE_LEN, timestamps) for k in DTW_KEYS
     }
     ideal_channels = {
         k: resample_channel([f.get(k, 0) for f in ideal_seq], RESAMPLE_LEN) for k in DTW_KEYS
@@ -628,7 +666,8 @@ def identify_shot(angle_sequence, is_right_handed=True):
         return None
 
     user = {
-        k: resample_channel([f.get(k) for f in angle_sequence], RESAMPLE_LEN)
+        k: resample_channel([f.get(k) for f in angle_sequence], RESAMPLE_LEN,
+                            _sequence_timestamps(angle_sequence))
         for k in MATCH_KEYS
     }
 
@@ -668,10 +707,9 @@ def calculate_sequence_score(angle_sequence, shot_type="cover_drive", is_right_h
     if not angle_sequence:
         return {"score": 0, "feedback": "No data captured", "matches": 0}
 
-    # Smooth angle channels before any scoring.
-    angle_sequence = smooth_angle_sequence(angle_sequence)
-
     if shot_type == "bowling_action":
+        # Isolate the delivery before filtering. Otherwise the gather and
+        # follow-through contaminate the extension extrema at its boundaries.
         return evaluate_bowling_action(angle_sequence, is_right_handed=is_right_handed)
 
     shot_name = get_shot_name(shot_type)
@@ -682,6 +720,22 @@ def calculate_sequence_score(angle_sequence, shot_type="cover_drive", is_right_h
         tolerance = mirror_tolerance(tolerance)
 
     quality = tracking_quality(angle_sequence)
+    if quality < 60:
+        return {
+            "score": 0, "shot_type": shot_type, "shot_name": shot_name,
+            "feedback": "Tracking was uncertain. Record again with your full body visible and good lighting.",
+            "angle_scores": {}, "is_good_shot": False,
+            "tracking_quality": quality, "confidence": "low",
+        }
+    if len(angle_sequence) < 3:
+        return {
+            "score": 0, "shot_type": shot_type, "shot_name": shot_name,
+            "feedback": "Too few frames — record a complete stroke.",
+            "angle_scores": {}, "is_good_shot": False,
+            "tracking_quality": quality, "confidence": "low",
+        }
+
+    angle_sequence = normalize_batting_angles(angle_sequence)
 
     # ── VALIDATION CHECKS ──────────────────────────────────────────
     is_standing, stance_feedback = check_standing_pose(angle_sequence)
@@ -707,7 +761,8 @@ def calculate_sequence_score(angle_sequence, shot_type="cover_drive", is_right_h
     # tolerance bands (1 std = full marks → 0 at 3 std). Hardcoded fallback
     # references have no bands, so plain length-normalized DTW applies.
     user_channels = {
-        key: resample_channel([f.get(key) for f in angle_sequence], RESAMPLE_LEN)
+        key: resample_channel([f.get(key) for f in angle_sequence], RESAMPLE_LEN,
+                              _sequence_timestamps(angle_sequence))
         for key in DTW_KEYS
     }
     # Grade technique, not anatomy: remove the offset this player carries on
@@ -717,7 +772,7 @@ def calculate_sequence_score(angle_sequence, shot_type="cover_drive", is_right_h
     angle_scores = {}
     total_score = 0.0
     for key in DTW_KEYS:
-        user_resampled = [v - calibration if v > 0 else v for v in user_channels[key]]
+        user_resampled = [float(np.clip(v - calibration, 0, 180)) for v in user_channels[key]]
         if tolerance and tolerance.get(key):
             ref_mean = [f.get(key, 0) for f in ideal_seq]
             score = tolerance_score(user_resampled, ref_mean, tolerance[key])
