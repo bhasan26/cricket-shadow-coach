@@ -1,5 +1,5 @@
 // Cyberpunk sports-telemetry hero banner shown above the live/dashboard views.
-export default function Hero() {
+export default function Hero({ description = 'Stand in front of your camera and play a shot. The AI will analyse your technique in real time.' }) {
   return (
     <header className="hero-banner" style={{
       position: 'relative', overflow: 'hidden',
@@ -35,7 +35,7 @@ export default function Hero() {
         maxWidth: '680px', letterSpacing: '0.5px', textTransform: 'uppercase',
         fontFamily: "'Plus Jakarta Sans', sans-serif",
       }}>
-        Stand in front of your camera and play a shot. The AI will analyse your technique in real time.
+        {description}
       </p>
 
       <div style={{

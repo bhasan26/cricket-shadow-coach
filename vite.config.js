@@ -12,13 +12,22 @@ export default defineConfig({
       // Keep the hand-authored public/manifest.json (already linked in index.html).
       manifest: false,
       workbox: {
-        // Precache the actual hashed build output so offline launch renders the
-        // shell, plus the (small) in-browser shot-classifier model.
-        globPatterns: ['**/*.{js,css,html,svg,png,ico,woff,woff2,onnx}'],
+        // Cache the app shell without downloading the entire image library or
+        // experimental model on every first visit.
+        globPatterns: ['**/*.{js,css,html,svg,ico,woff,woff2}'],
         navigateFallback: '/index.html',
         // Never serve the SPA shell for API calls.
         navigateFallbackDenylist: [/^\/api/],
         runtimeCaching: [
+          {
+            urlPattern: ({ request, url }) => request.destination === 'image' && url.origin === self.location.origin,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'practice-images',
+              expiration: { maxEntries: 24, maxAgeSeconds: 30 * 24 * 60 * 60 },
+              cacheableResponse: { statuses: [200] },
+            },
+          },
           {
             // Backend API: always hit the network, never cache.
             urlPattern: ({ url }) => url.pathname.startsWith('/api'),

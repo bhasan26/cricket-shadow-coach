@@ -2,6 +2,27 @@
 
 Complete documentation for the Cricket Batting Coach API endpoints.
 
+All endpoint paths below are relative to `/api` (for example,
+`POST http://localhost:8000/api/analyze-shot`). The same prefix is used in
+production.
+
+### Pose input validation
+
+- Each frame must have exactly 33 landmarks with finite `x`, `y`, and `z`.
+  Coordinates may lie outside the image; world coordinates are in metres.
+- `visibility` must be between 0 and 1 inclusive; omitted visibility defaults to 1.
+- A shot sequence and its optional world-landmark sequence are each limited to
+  600 frames. If supplied, world landmarks must have exactly one complete frame
+  per shot-sequence frame. Malformed world data is rejected rather than silently
+  falling back to image geometry.
+- `shot_type` must be `cover_drive`, `straight_drive`, `pull_shot`,
+  `defensive_block`, `flick_shot`, or `bowling_action`.
+- Batch frame analysis accepts at most 600 items. Invalid input returns HTTP 422.
+
+The browser stops recordings at 15 seconds or 600 captured frames and applies
+a 30-second timeout to analysis requests. A client timeout or cancellation stops
+waiting for a result; it does not guarantee cancellation of server computation.
+
 ## Base URL
 
 ```

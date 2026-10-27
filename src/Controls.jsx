@@ -1,5 +1,5 @@
 
-function Controls({ onStart, onStop, isRecording, isAnalyzing, isRightHanded = true, onToggleHandedness }) {
+function Controls({ onStart, onStop, isRecording, isAnalyzing, isReady = true, recordingAllowed = true, setupLocked = false, isRightHanded = true, onToggleHandedness }) {
   const btnBase = {
     padding: '14px 24px',
     fontSize: '0.88rem',
@@ -41,10 +41,10 @@ function Controls({ onStart, onStop, isRecording, isAnalyzing, isRightHanded = t
             Batting Hand
           </div>
           <div style={{ display: 'flex', gap: '8px' }}>
-            <button type="button" disabled={isRecording} onClick={() => onToggleHandedness(true)} style={handBtn(isRightHanded)}>
+            <button type="button" disabled={isRecording || isAnalyzing || setupLocked} onClick={() => onToggleHandedness(true)} style={handBtn(isRightHanded)}>
               Right-Handed
             </button>
-            <button type="button" disabled={isRecording} onClick={() => onToggleHandedness(false)} style={handBtn(!isRightHanded)}>
+            <button type="button" disabled={isRecording || isAnalyzing || setupLocked} onClick={() => onToggleHandedness(false)} style={handBtn(!isRightHanded)}>
               Left-Handed
             </button>
           </div>
@@ -55,7 +55,7 @@ function Controls({ onStart, onStop, isRecording, isAnalyzing, isRightHanded = t
       <button
         type="button"
         onClick={onStart}
-        disabled={isAnalyzing || isRecording}
+        disabled={!isReady || !recordingAllowed || isAnalyzing || isRecording}
         className={isRecording ? 'btn-warning' : 'btn-primary'}
         style={{
           ...btnBase,
@@ -81,7 +81,7 @@ function Controls({ onStart, onStop, isRecording, isAnalyzing, isRightHanded = t
             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
               <path d="M8 5.14v13.72c0 .86.94 1.39 1.68.94l10.9-6.86a1.1 1.1 0 0 0 0-1.88L9.68 4.2A1.1 1.1 0 0 0 8 5.14Z" />
             </svg>
-            Start Practice
+            {!recordingAllowed ? 'Continue guided practice above' : isReady ? 'Start Practice' : 'Waiting for tracking…'}
           </>
         )}
       </button>

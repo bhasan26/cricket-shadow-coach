@@ -3,12 +3,16 @@ import { Helmet } from 'react-helmet-async';
 import { createPoseDetector } from './poseUtils';
 import { PoseSmoother } from './filters';
 import { getFramingHint, FRAMING_HINT_HOLD_MS } from './framing';
+import { copyLandmarks, MAX_RECORDING_FRAMES, MAX_RECORDING_MS } from './recording';
 import { classifyShot, isExperimentalEnabled } from './shotClassifier';
 import { drawSkeleton, calculateAngleJS, calculateSpineTiltJS } from './drawSkeleton';
 import { analyzeShotSequence, checkAPIHealth, fetchShots } from './api';
 import Feedback from './Feedback';
 import Controls from './Controls';
 import ShotSelector from './components/ShotSelector';
+import PracticeSessionPanel from './components/PracticeSessionPanel';
+import usePracticeSession from './usePracticeSession';
+import { isRecordingStage, REPS_PER_SET, summarizeSet } from './practiceSession';
 import { NANO_ICONS } from './shotIcons';
 import { 
   speakCoachingCue, 
@@ -34,12 +38,21 @@ const calculateVariance = (values) => {
 };
 
 function CameraFeed() {
+  const {
+    session: practiceSession, storageAvailable: practiceStorageAvailable,
+    start: startPracticeSession, end: endPracticeSession,
+    beginRepeat: beginPracticeRepeat, canRecord: canRecordPractice,
+    getContext: getPracticeContext, recordResult: recordPracticeResult,
+  } = usePracticeSession();
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
   const poseDetectorRef = useRef(null);
   const frameBufferRef = useRef([]);
   const isRecordingRef = useRef(false);
+  const recordingAttemptRef = useRef(null);
+  const analysisAbortRef = useRef(null);
+  const mountedRef = useRef(true);
   // One Euro smoothing on the metric 3D world landmarks that feed backend angle
   // math. Runs on every frame (not just while recording) so the filters are
   // already warm when recording starts. Screen landmarks are left raw — they
@@ -67,10 +80,15 @@ function CameraFeed() {
   // Core recording state
   const [isRecording, setIsRecording] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [canRetryAnalysis, setCanRetryAnalysis] = useState(false);
+  const [retryShotName, setRetryShotName] = useState('');
+  const [recordingElapsed, setRecordingElapsed] = useState(0);
   const [currentScore, setCurrentScore] = useState(0);
   const [currentFeedback, setCurrentFeedback] = useState('');
   const [cameraReady, setCameraReady] = useState(false);
   const [poseReady, setPoseReady] = useState(false);
+  const [poseError, setPoseError] = useState('');
+  const [poseRetryToken, setPoseRetryToken] = useState(0);
   const [apiReady, setApiReady] = useState(false);
 
   // Drill selections
@@ -100,6 +118,7 @@ function CameraFeed() {
   const [ghostEnabled, setGhostEnabled] = useState(true);
   // Batting handedness — persisted so returning left-handers don't re-toggle.
   const [isRightHanded, setIsRightHanded] = useState(() => {
+    if (practiceSession) return practiceSession.isRightHanded;
     try {
       return localStorage.getItem('shadow_is_right_handed') !== 'false';
     } catch {
@@ -108,7 +127,7 @@ function CameraFeed() {
   });
   const isRightHandedRef = useRef(true);
   // Rear camera by default — users prop the phone up and stand back for a full-body shot.
-  const [facingMode, setFacingMode] = useState('environment');
+  const [facingMode, setFacingMode] = useState(practiceSession?.facingMode || 'environment');
   // Camera permission failed — drives the in-frame denied/retry overlay.
   const [cameraError, setCameraError] = useState(false);
   // Bumped by the Retry button to re-run the camera effect after a denial.
@@ -137,6 +156,15 @@ function CameraFeed() {
   const [framingHint, setFramingHint] = useState('');
   const framingCandidateRef = useRef({ hint: '', since: 0 });
   const framingShownRef = useRef('');
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      isRecordingRef.current = false;
+      analysisAbortRef.current?.abort();
+    };
+  }, []);
 
   // Keep refs in sync with state so the stable per-frame callback reads fresh values.
   useEffect(() => { autoRecordEnabledRef.current = autoRecordEnabled; }, [autoRecordEnabled]);
@@ -172,8 +200,19 @@ function CameraFeed() {
   }, []);
 
   const handleStart = useCallback(() => {
+    if (!cameraReady || !poseReady || isRecordingRef.current || isAnalyzingRef.current || !canRecordPractice()) return;
     unlockMobileAudio();
     frameBufferRef.current = [];
+    recordingAttemptRef.current = {
+      id: crypto.randomUUID(),
+      ...getPracticeContext(),
+      shotType: selectedShot,
+      isRightHanded: isRightHandedRef.current,
+      name: availableShots[selectedShot]?.name || selectedShot,
+      emoji: availableShots[selectedShot]?.emoji || '🏏',
+    };
+    setCanRetryAnalysis(false);
+    setRecordingElapsed(0);
     setTelemetry(t => ({ ...t, bufferedFrameCount: 0 }));
     setAnalysisResult(null);
     setIsRecording(true);
@@ -187,35 +226,28 @@ function CameraFeed() {
     setCurrentFeedback(`Analyzing live ${shotName}... Perform your actions in view!`);
     setCurrentScore(0);
     setLastShotName('');
-  }, [selectedShot, availableShots]);
+    setMobileTab('camera');
+  }, [selectedShot, availableShots, cameraReady, poseReady, canRecordPractice, getPracticeContext]);
 
-  const handleStop = useCallback(async () => {
-    unlockMobileAudio();
-    setIsRecording(false);
-    isRecordingRef.current = false;
-    autoRecordStateRef.current = 'IDLE';
-    setHudStateLabel('STAND IN STANCE');
-    
-    const frames = frameBufferRef.current;
-    if (frames.length === 0) {
-      speakCoachingCue('No movement detected.', true);
-      setCurrentFeedback('No movement captured. Please stand back and try again.');
-      return;
-    }
-
-    playAutoStopSound();
-    speakCoachingCue(`Movement complete. Evaluating biomechanics, please hold.`, true);
-
+  const analyzeAttempt = useCallback(async () => {
+    const attempt = recordingAttemptRef.current;
+    if (!attempt?.frames?.length || isAnalyzingRef.current) return;
+    const { frames, shotType, isRightHanded, name: shotName } = attempt;
+    setRetryShotName(shotName);
+    const controller = new AbortController();
+    analysisAbortRef.current = controller;
+    isAnalyzingRef.current = true;
     setIsAnalyzing(true);
-    const shotName = availableShots[selectedShot]?.name || selectedShot;
-    setCurrentFeedback(`Processing biomechanics for ${shotName}...`);
+    setCanRetryAnalysis(false);
+    setCurrentFeedback(`Comparing your ${shotName} movement...`);
     
     try {
       const sequence = frames.map(f => f.landmarks);
       // Include world landmarks only if every frame captured them.
       const worldFrames = frames.map(f => f.world);
       const worldSequence = worldFrames.every(Boolean) ? worldFrames : null;
-      const result = await analyzeShotSequence(sequence, selectedShot, worldSequence, isRightHandedRef.current);
+      const result = await analyzeShotSequence(sequence, shotType, worldSequence, isRightHanded, { signal: controller.signal });
+      if (!mountedRef.current || controller.signal.aborted) return;
 
       // EXPERIMENTAL shot verification (in-browser ONNX classifier, 62.6%
       // test accuracy — below the 80% default-on gate, so opt-in only via
@@ -225,45 +257,85 @@ function CameraFeed() {
       // different guesses in one feedback line is worse than none.
       const backendIdentified = result?.shot_match?.confident;
       if (!backendIdentified && isExperimentalEnabled()
-          && selectedShot !== 'bowling_action' && worldSequence) {
-        const guess = await classifyShot(worldSequence);
-        if (guess && guess.confidence > 0.7 && guess.shotType !== selectedShot) {
+          && shotType !== 'bowling_action' && worldSequence) {
+        const guess = await classifyShot(worldSequence, { signal: controller.signal });
+        if (guess && guess.confidence > 0.7 && guess.shotType !== shotType) {
           const guessName = availableShots[guess.shotType]?.name || guess.shotType;
           result.feedback = `🤖 This looked more like a ${guessName} `
             + `(${Math.round(guess.confidence * 100)}% confidence — experimental). | `
             + (result.feedback || '');
         }
       }
+      if (!mountedRef.current || controller.signal.aborted) return;
 
       setCurrentScore(result.score || 0);
       setCurrentFeedback(result.feedback || 'Analysis complete');
       setLastShotName(result.shot_name || shotName);
       setAnalysisResult(result);
+      const lowConfidence = result.confidence === 'low' || result.tracking_quality < 60;
+      const practiceProgress = recordPracticeResult(result, attempt);
 
       // On mobile, jump straight to the Results tab so the score is seen without scrolling.
       setMobileTab('results');
 
-      if (selectedShot === 'bowling_action') {
+      if (practiceProgress && !practiceProgress.accepted) {
+        const message = practiceProgress.session.notice || 'This attempt has not been counted. Please record again.';
+        setCurrentFeedback(message);
+        speakCoachingCue(message, true);
+        recordingAttemptRef.current = null;
+        return;
+      }
+
+      if (lowConfidence) {
+        speakCoachingCue('Tracking was uncertain. Please record again with your full body visible and good lighting.', true);
+        recordingAttemptRef.current = null;
+        return;
+      }
+
+      if (practiceProgress) {
+        const session = practiceProgress.session;
+        let message;
+        if (session.stage === 'review') {
+          message = `First five complete. ${session.focus.cue} Read your focus, then start the second set.`;
+        } else if (session.stage === 'complete') {
+          const first = summarizeSet(session.baseline);
+          const second = summarizeSet(session.repeat);
+          message = `Practice complete. First set average ${first.average.toFixed(1)}, second set ${second.average.toFixed(1)} out of 100.`;
+        } else {
+          const count = session[session.stage].length;
+          message = `Attempt ${count} of ${REPS_PER_SET} counted.${session.stage === 'repeat' ? ` ${session.focus.cue}` : ' Keep the same camera setup for the next stroke.'}`;
+        }
+        if (!isRecordingStage(session)) {
+          // Stop hands-free recording at the review and comparison boundaries.
+          autoRecordEnabledRef.current = false;
+          setAutoRecordEnabled(false);
+          autoRecordStateRef.current = 'IDLE';
+          setHudStateLabel('SET COMPLETE');
+        }
+        setCurrentFeedback(message);
+        speakCoachingCue(message, true);
+      } else if (shotType === 'bowling_action') {
         // Indicative estimate only — 30fps webcam analysis cannot adjudicate
         // ICC compliance (official testing is 250fps lab motion capture).
         const isWithinGuideline = result.is_good_shot;
         const extension = result.angle_scores?.bowling_arm_extension?.toFixed(1) || 0;
-        const lowConfidence = result.confidence === 'low';
         if (isWithinGuideline) {
-          speakCoachingCue(`Estimated extension ${extension} degrees, within the 15 degree guideline. Score ${result.score}.${lowConfidence ? ' Low confidence — re-record with your full body visible.' : ''}`, true);
+          speakCoachingCue(`Estimated extension ${extension} degrees, within the 15 degree guideline. Score ${result.score}. Indicative practice guidance only.`, true);
         } else {
           speakCoachingCue(`Estimated extension ${extension} degrees, exceeding the 15 degree guideline. This is indicative only, not an official assessment. Keep your arm locked.`, true);
         }
       } else {
-        speakCoachingCue(`Drill complete. Accuracy score ${result.score} percent. ${result.feedback.split('|')[1] || ''}`, true);
+        speakCoachingCue(`Drill complete. Technique match ${result.score} out of 100. ${result.feedback.split('|')[1] || ''}`, true);
       }
 
       const newHistoryItem = {
-        name: availableShots[selectedShot]?.name || selectedShot,
-        key: selectedShot,
-        emoji: availableShots[selectedShot]?.emoji || '🏏',
+        name: shotName,
+        key: shotType,
+        emoji: attempt.emoji,
         score: result.score || 0,
         isLegal: result.is_good_shot,
+        practiceId: attempt.practiceId,
+        practiceStage: attempt.practiceStage,
         timestamp: Date.now()
       };
       
@@ -278,16 +350,58 @@ function CameraFeed() {
         }
         return updated;
       });
+      recordingAttemptRef.current = null;
 
-    } catch {
-      speakCoachingCue(`Analysis failed.`, true);
-      setCurrentFeedback('Analysis failed. Ensure backend API service is running locally.');
+    } catch (error) {
+      if (mountedRef.current) {
+        speakCoachingCue('Analysis did not complete. Your attempt is saved for retry.', true);
+        setCurrentFeedback(error.message || 'Analysis failed. You can retry this attempt.');
+        setCanRetryAnalysis(true);
+        setMobileTab('results');
+      }
     } finally {
-      setIsAnalyzing(false);
-      frameBufferRef.current = [];
-      setTelemetry(t => ({ ...t, bufferedFrameCount: 0 }));
+      analysisAbortRef.current = null;
+      isAnalyzingRef.current = false;
+      if (mountedRef.current) {
+        setIsAnalyzing(false);
+        // Also retain an attempt cancelled after the HTTP response arrived.
+        if (controller.signal.aborted && recordingAttemptRef.current) {
+          setCurrentFeedback('Analysis cancelled. You can retry this attempt.');
+          setCanRetryAnalysis(true);
+        }
+      }
     }
-  }, [selectedShot, availableShots]);
+  }, [availableShots, recordPracticeResult]);
+
+  const handleStop = useCallback(() => {
+    if (!isRecordingRef.current) return;
+    unlockMobileAudio();
+    isRecordingRef.current = false;
+    setIsRecording(false);
+    autoRecordStateRef.current = 'IDLE';
+    setHudStateLabel('STAND IN STANCE');
+    const frames = frameBufferRef.current;
+    frameBufferRef.current = [];
+    setTelemetry(t => ({ ...t, bufferedFrameCount: 0 }));
+    if (!frames.length) {
+      setCurrentFeedback('No movement captured. Please stand back and try again.');
+      return;
+    }
+    recordingAttemptRef.current.frames = frames;
+    playAutoStopSound();
+    void analyzeAttempt();
+  }, [analyzeAttempt]);
+
+  useEffect(() => {
+    if (!isRecording) return;
+    // Wall-clock limit also stops a recording when tracking disappears.
+    const timer = setInterval(() => {
+      const elapsed = Date.now() - recordingStartTimeRef.current;
+      setRecordingElapsed(Math.min(elapsed, MAX_RECORDING_MS));
+      if (elapsed >= MAX_RECORDING_MS) handleStopRef.current();
+    }, 100);
+    return () => clearInterval(timer);
+  }, [isRecording]);
 
   // Stable per-frame callback. Reads volatile UI state through refs so its identity
   // never changes — this is what keeps the MediaPipe detector effect from tearing
@@ -343,11 +457,15 @@ function CameraFeed() {
 
     if (isRecordingRef.current) {
       frameBufferRef.current.push({
-        landmarks: landmarks.map(lm => ({ x: lm.x, y: lm.y, z: lm.z, visibility: lm.visibility || 1.0 })),
+        landmarks: copyLandmarks(landmarks),
         // Metric 3D world landmarks (One Euro smoothed) power accurate backend angles.
         world: smoothedWorld,
         timestamp: Date.now(),
       });
+      if (frameBufferRef.current.length >= MAX_RECORDING_FRAMES) {
+        handleStopRef.current();
+        return;
+      }
     }
 
     // Throttle React state updates: telemetry gauges + counters refresh at most
@@ -384,7 +502,7 @@ function CameraFeed() {
       }
     }
 
-    if (autoRecordEnabled && !isAnalyzing) {
+    if (autoRecordEnabled && !isAnalyzing && !recordingAttemptRef.current?.frames && canRecordPractice()) {
       const buffer = anglesBufferRef.current;
       buffer.push({ le, re, lk, rk, st, time: Date.now() });
       if (buffer.length > STABILITY_BUFFER_SIZE) {
@@ -475,7 +593,52 @@ function CameraFeed() {
       }
     }
 
-  }, []);
+  }, [canRecordPractice]);
+
+  const startGuidedPractice = () => {
+    if (isRecordingRef.current || isAnalyzingRef.current) return;
+    unlockMobileAudio();
+    recordingAttemptRef.current = null;
+    setCanRetryAnalysis(false);
+    autoRecordEnabledRef.current = false;
+    setAutoRecordEnabled(false);
+    autoRecordStateRef.current = 'IDLE';
+    anglesBufferRef.current = [];
+    setHudStateLabel('STAND IN STANCE');
+    setSelectedShot('cover_drive');
+    setAnalysisResult(null);
+    setCurrentScore(0);
+    setLastShotName('');
+    startPracticeSession({ isRightHanded: isRightHandedRef.current, facingMode });
+    setMobileTab('camera');
+    const message = 'Start with five cover drives. Keep the same camera position and record one full stroke at a time.';
+    setCurrentFeedback(message);
+    speakCoachingCue(message, true);
+  };
+
+  const startSecondSet = () => {
+    if (isRecordingRef.current || isAnalyzingRef.current) return;
+    const session = beginPracticeRepeat();
+    if (session?.stage !== 'repeat') return;
+    anglesBufferRef.current = [];
+    autoRecordStateRef.current = 'IDLE';
+    setHudStateLabel('STAND IN STANCE');
+    setMobileTab('camera');
+    setCurrentFeedback(`Second set: ${session.focus.cue}`);
+    speakCoachingCue(`Second set. ${session.focus.cue} Record five more cover drives.`, true);
+  };
+
+  const returnToFreePractice = () => {
+    if (isRecordingRef.current || isAnalyzingRef.current) return;
+    endPracticeSession();
+    recordingAttemptRef.current = null;
+    setCanRetryAnalysis(false);
+    autoRecordEnabledRef.current = false;
+    setAutoRecordEnabled(false);
+    autoRecordStateRef.current = 'IDLE';
+    setHudStateLabel('STAND IN STANCE');
+    setCurrentFeedback('Free practice ready. Choose any drill.');
+  };
 
   // Keep the mutable refs pointed at the latest callbacks after each render.
   useEffect(() => {
@@ -489,6 +652,9 @@ function CameraFeed() {
     const startCamera = async () => {
       try {
         setCameraError(false);
+        setCameraReady(false);
+        setPoseReady(false);
+        setPoseError('');
         // Stop any previous stream before switching cameras.
         if (streamRef.current) {
           streamRef.current.getTracks().forEach(t => t.stop());
@@ -502,11 +668,13 @@ function CameraFeed() {
         streamRef.current = stream;
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
-          videoRef.current.onloadedmetadata = () => setCameraReady(true);
+          videoRef.current.onloadedmetadata = () => { if (mounted) setCameraReady(true); };
         }
       } catch {
-        if (mounted) setCameraError(true);
-        setCurrentFeedback('Camera access denied. Please allow camera permissions in your browser to begin analysis.');
+        if (mounted) {
+          setCameraError(true);
+          setCurrentFeedback('Camera unavailable. Check camera permissions and close other apps using it, then retry.');
+        }
       }
     };
     startCamera();
@@ -515,6 +683,7 @@ function CameraFeed() {
 
   useEffect(() => {
     if (!cameraReady || !videoRef.current) return;
+    let mounted = true;
     const video = videoRef.current;
     const canvas = canvasRef.current;
     const syncSize = () => { if (canvas && video.videoWidth) { canvas.width = video.videoWidth; canvas.height = video.videoHeight; } };
@@ -525,15 +694,21 @@ function CameraFeed() {
     const detector = createPoseDetector(video, (lm, wl) => handlePoseLandmarksRef.current(lm, wl));
     poseDetectorRef.current = detector;
     detector.start().then(() => {
+      if (!mounted) return;
       setPoseReady(true);
+      setPoseError('');
       setCurrentFeedback(prev =>
         (!prev || prev.includes('Ready'))
           ? 'Ready! Calibrate your feet and align into the ghost overlay.'
           : prev
       );
+    }).catch(error => {
+      if (!mounted) return;
+      setPoseReady(false);
+      setPoseError(error.message || 'Movement tracking could not load. Please retry.');
     });
-    return () => { video.removeEventListener('resize', syncSize); detector.destroy(); };
-  }, [cameraReady]);
+    return () => { mounted = false; video.removeEventListener('resize', syncSize); detector.destroy(); };
+  }, [cameraReady, poseRetryToken]);
 
   const getGaugeColor = (type, val) => {
     if (type.includes('elbow')) {
@@ -587,15 +762,31 @@ function CameraFeed() {
   return (
     <>
       <Helmet>
-        <title>Live Cricket Analysis — AI Batting & Bowling Legality Checker</title>
-        <meta name="description" content="Use your camera for real-time cricket technique analysis. Instantly score batting strokes and check bowling arm extension against ICC legality rules." />
+        <title>Live Cricket Practice — Batting Feedback & Bowling Movement</title>
+        <meta name="description" content="Practice cricket strokes with camera-based movement feedback and an indicative bowling arm-extension estimate." />
       </Helmet>
       <div className="dashboard-journey">
+      <PracticeSessionPanel
+        session={practiceSession}
+        storageAvailable={practiceStorageAvailable}
+        isRecording={isRecording}
+        isAnalyzing={isAnalyzing}
+        isReady={cameraReady && poseReady}
+        canRetry={canRetryAnalysis}
+        errorMessage={currentFeedback}
+        onStart={startGuidedPractice}
+        onEnd={returnToFreePractice}
+        onBeginRepeat={startSecondSet}
+        onRecord={handleStart}
+        onStop={handleStop}
+        onRetry={analyzeAttempt}
+        onCancel={() => analysisAbortRef.current?.abort()}
+      />
       {/* Step 1: Choose Shot */}
       <ShotSelector
         availableShots={availableShots}
         selectedShot={selectedShot}
-        isRecording={isRecording}
+        isRecording={isRecording || isAnalyzing || Boolean(practiceSession)}
         onSelect={(key) => { setSelectedShot(key); setAnalysisResult(null); }}
         className={mobileTab !== 'choose-shot' ? 'mobile-hide' : ''}
       />
@@ -617,8 +808,20 @@ function CameraFeed() {
             <video ref={videoRef} autoPlay muted playsInline />
             <canvas ref={canvasRef} />
 
+            {cameraReady && !poseReady && (
+              <div className="tracking-status" role={poseError ? 'alert' : 'status'}>
+                <p>{poseError || 'Loading movement tracking…'}</p>
+                {poseError && (
+                  <button type="button" className="btn-primary" onClick={() => {
+                    setPoseError('');
+                    setPoseRetryToken(t => t + 1);
+                  }}>Retry tracking</button>
+                )}
+              </div>
+            )}
+
             {/* Flip Camera (front/rear) — bottom-right, thumb-reachable */}
-            {cameraReady && !isRecording && (
+            {cameraReady && !isRecording && !practiceSession && (
               <button
                 type="button"
                 aria-label="Switch camera"
@@ -667,8 +870,8 @@ function CameraFeed() {
                 </span>
                 <span style={{ fontSize: '0.8rem', color: '#94a3b8', maxWidth: '340px', lineHeight: 1.5 }}>
                   {cameraError
-                    ? "Camera access was blocked. Allow the camera in your browser's site settings, then retry. Your video never leaves your device — only anonymous joint coordinates are sent for scoring."
-                    : 'Your browser may ask for camera permission. Your video never leaves your device — only anonymous joint coordinates are sent for scoring.'}
+                    ? "Check camera permissions and close other apps using the camera, then retry. Your video stays on your device; joint coordinates are sent for scoring."
+                    : 'Your browser may ask for camera permission. Your video stays on your device; joint coordinates are sent for scoring.'}
                 </span>
                 {cameraError && (
                   <button
@@ -741,7 +944,7 @@ function CameraFeed() {
                 letterSpacing: '1.2px',
               }}>
                 <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#fff' }} />
-                <span className="mono-telemetry">LIVE TELEMETRY REC • {bufferedFrameCount} FRM</span>
+                <span className="mono-telemetry">Recording • {(recordingElapsed / 1000).toFixed(1)} / {MAX_RECORDING_MS / 1000}s • {bufferedFrameCount}/{MAX_RECORDING_FRAMES}</span>
               </div>
             )}
 
@@ -947,9 +1150,26 @@ function CameraFeed() {
               onStop={handleStop}
               isRecording={isRecording}
               isAnalyzing={isAnalyzing}
+              isReady={cameraReady && poseReady}
+              recordingAllowed={!practiceSession || isRecordingStage(practiceSession)}
+              setupLocked={Boolean(practiceSession)}
               isRightHanded={isRightHanded}
               onToggleHandedness={(v) => { unlockMobileAudio(); setIsRightHanded(v); }}
             />
+            <p className="practice-note">Record one full stroke. Recording stops automatically after 15 seconds or 600 frames.</p>
+            {isAnalyzing && (
+              <button type="button" className="btn-warning" onClick={() => analysisAbortRef.current?.abort()}>
+                Cancel analysis
+              </button>
+            )}
+            {canRetryAnalysis && !isAnalyzing && (
+              <div className="analysis-retry" role="status">
+                <p>Your last attempt is available until you start a new recording or leave this page.</p>
+                <button type="button" className="btn-primary" onClick={analyzeAttempt}>
+                  Retry {retryShotName || 'last attempt'} analysis
+                </button>
+              </div>
+            )}
             
             {/* Hands-Free Auto-Record Toggle */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '24px', paddingTop: '20px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
@@ -964,6 +1184,7 @@ function CameraFeed() {
                 role="switch"
                 aria-checked={autoRecordEnabled}
                 aria-label="Auto-record hands-free"
+                disabled={Boolean(practiceSession) && !isRecordingStage(practiceSession)}
                 onClick={() => {
                   unlockMobileAudio();
                   setAutoRecordEnabled(!autoRecordEnabled);
@@ -1022,13 +1243,26 @@ function CameraFeed() {
 
           {/* Symmetrical Feedback diagnostics panel */}
           <div className="cyber-card" style={{ padding: '24px', marginBottom: '16px' }}>
-            <Feedback
-              score={currentScore}
-              message={currentFeedback}
-              shotName={lastShotName}
-              analysisResult={analysisResult}
-              history={history}
-            />
+            {practiceSession ? (
+              <details>
+                <summary>Last attempt details</summary>
+                <Feedback
+                  score={currentScore}
+                  message={currentFeedback}
+                  shotName={lastShotName}
+                  analysisResult={analysisResult}
+                  history={history}
+                />
+              </details>
+            ) : (
+              <Feedback
+                score={currentScore}
+                message={currentFeedback}
+                shotName={lastShotName}
+                analysisResult={analysisResult}
+                history={history}
+              />
+            )}
           </div>
 
           {/* Connection health pills */}

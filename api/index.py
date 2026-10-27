@@ -2,10 +2,11 @@ import logging
 import os
 import sys
 import uuid
+from typing import Annotated, Literal
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import Body, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, FiniteFloat, field_validator, model_validator
 
 # Add current directory to path so Vercel can find local modules
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -56,10 +57,12 @@ app.add_middleware(
 
 # Request/Response models
 class Landmark(BaseModel):
-    x: float
-    y: float
-    z: float
-    visibility: float = 1.0
+    # Image landmarks can legitimately lie outside the frame, and world
+    # landmarks use metres. Require finite coordinates rather than clamping.
+    x: FiniteFloat
+    y: FiniteFloat
+    z: FiniteFloat
+    visibility: float = Field(default=1.0, ge=0.0, le=1.0, allow_inf_nan=False)
 
 
 def _validate_frame(frame: list[Landmark]) -> list[Landmark]:
@@ -78,21 +81,30 @@ class FramePayload(BaseModel):
 
 
 class ShotSequencePayload(BaseModel):
-    shot_sequence: list[list[Landmark]]
-    shot_type: str = "cover_drive"
+    shot_sequence: list[list[Landmark]] = Field(max_length=MAX_SEQUENCE_FRAMES)
+    shot_type: Literal[
+        "cover_drive", "straight_drive", "pull_shot", "defensive_block",
+        "flick_shot", "bowling_action",
+    ] = "cover_drive"
     is_right_handed: bool = True
     # Optional MediaPipe world landmarks (metric 3D). When present, backend angles
     # are computed from these instead of the 2D image projection.
-    world_landmarks: list[list[Landmark]] | None = None
+    world_landmarks: list[list[Landmark]] | None = Field(default=None, max_length=MAX_SEQUENCE_FRAMES)
 
-    @field_validator("shot_sequence")
+    @field_validator("shot_sequence", "world_landmarks")
     @classmethod
     def check_sequence(cls, v):
-        if len(v) > MAX_SEQUENCE_FRAMES:
-            raise ValueError(f"Sequence too long: {len(v)} frames (max {MAX_SEQUENCE_FRAMES})")
+        if v is None:
+            return v
         for frame in v:
             _validate_frame(frame)
         return v
+
+    @model_validator(mode="after")
+    def check_alignment(self):
+        if self.world_landmarks is not None and len(self.world_landmarks) != len(self.shot_sequence):
+            raise ValueError("World landmarks must have one frame per shot-sequence frame")
+        return self
 
 
 class FrameAnalysisResponse(BaseModel):
@@ -134,7 +146,7 @@ async def health_check():
 
 
 @app.post("/api/analyze-frame", response_model=FrameAnalysisResponse)
-async def analyze_frame(payload: FramePayload):
+def analyze_frame(payload: FramePayload):
     """Analyze a single frame of pose data."""
     try:
         angles = extract_shot_angles(_frame_to_dicts(payload.poseLandmarks))
@@ -150,7 +162,7 @@ async def analyze_frame(payload: FramePayload):
 
 
 @app.post("/api/analyze-shot", response_model=ShotAnalysisResponse)
-async def analyze_shot_sequence(payload: ShotSequencePayload):
+def analyze_shot_sequence(payload: ShotSequencePayload):
     """Analyze a complete shot sequence using DTW comparison."""
     if not payload.shot_sequence:
         return ShotAnalysisResponse(
@@ -192,7 +204,7 @@ async def analyze_shot_sequence(payload: ShotSequencePayload):
 
 
 @app.post("/api/batch-analyze")
-async def batch_analyze(payloads: list[FramePayload]):
+def batch_analyze(payloads: Annotated[list[FramePayload], Body(max_length=MAX_SEQUENCE_FRAMES)]):
     """Analyze multiple frames in batch."""
     try:
         results = []

@@ -7,8 +7,12 @@
 }
 
 /* Top navigation buttons (moved off inline styles so :hover works reliably) */
+.app-header { flex-wrap: wrap; gap: 20px; }
+.brand-text-container { flex: 1 1 280px; }
+.top-nav-wrapper { min-width: 0; max-width: 100%; }
 .top-nav-buttons {
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
   background: rgba(0, 0, 0, 0.4);
   padding: 4px;
@@ -323,6 +327,7 @@
   }
   .top-nav-buttons {
     flex-direction: row !important;
+    flex-wrap: nowrap;
     width: 100% !important;
     gap: 4px !important;
   }
@@ -588,4 +593,27 @@
 
 .glow-text-pink {
   text-shadow: 0 0 12px rgba(255, 51, 102, 0.45);
+}
+
+/* Loading and recovery stay visible over the camera on both mobile and desktop. */
+.tracking-status {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  gap: 16px;
+  color: #cbd5e1;
+  background: rgba(3, 7, 18, 0.92);
+  text-align: center;
+}
+
+.practice-note, .analysis-retry {
+  margin-top: 12px;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: #cbd5e1;
 }

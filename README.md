@@ -14,6 +14,8 @@
 ## Features
 
 - **5 batting drills** — cover drive, straight drive, pull shot, defensive block, flick shot — each scored against a biomechanically-authored ideal model via Dynamic Time Warping.
+- **Guided cover-drive practice** — five usable attempts, one practice cue, then five more with an average-match and score-spread comparison. Progress resumes in the same browser; completed summaries can be downloaded without video or landmarks.
+- **Practice progress dashboard** — `/progress` keeps the latest 50 completed guided practices, with a recent-set chart, hand/camera filters, exact scores, past focus cues, and summary downloads. Starting another practice preserves the previous comparison.
 - **ICC bowling action screen** — an *indicative* elbow-extension check against the 15° Rule 11.1 guideline, with honest 2D-camera caveats (see [Limitations](#accuracy--limitations)).
 - **Hands-free auto-record** — stand in your stance and the app detects stability, counts you down, records the shot, and analyses the follow-through automatically.
 - **Live skeleton overlay + telemetry** — real-time joint angles (elbows, knees, spine tilt) with a ghost blueprint to align your stance.
@@ -59,24 +61,50 @@ uvicorn index:app --reload --port 8000
 
 **Tests**
 ```bash
-npm test                        # frontend smoke test (vitest)
+npm test                        # frontend + recording/recovery tests (vitest)
 cd api && python -m pytest tests -q
 python -m eval.run_eval         # scoring calibration harness
 ```
 
 ## Accuracy & Limitations
 
-The scorer is calibrated with a synthetic eval harness (`api/eval/`). Current results:
+The scorer is calibrated with a synthetic eval harness (`api/eval/`). These
+checks measure consistency against reference-derived examples, **not accuracy
+on independent real players**. Scores are movement comparisons for practice,
+not percentages of cricket ability. Current synthetic results:
 
 | Case | Score | Target |
 |------|------:|:------:|
-| Ideal replay (all 5 shots) | 95–99 | ≥ 90 |
-| Time-stretched ideal (0.5×–2×) | 97–100 | ≥ 85 |
-| Noisy ideal (±3° jitter) | 98 | ≥ 75 |
+| Ideal replay (all 5 shots) | 100 | ≥ 90 |
+| Time-stretched ideal (0.5×–2×) | 100 | ≥ 85 |
+| Noisy ideal (±3° jitter) | 100 | ≥ 75 |
 | Sitting still | 5 | ≤ 30 |
 | Random flailing | 7 | ≤ 30 |
 
 Run `python -m eval.run_eval` from `api/` to reproduce.
+
+Practice recordings stop at 15 seconds or 600 tracked frames, whichever comes
+first. Analysis requests time out after 30 seconds and can be cancelled. Failed
+attempts stay in page memory for an explicit retry, retaining the original drill
+and handedness; starting a new recording or leaving the page discards them.
+Model loading failures show a retry action and keep recording disabled.
+
+On `/live`, choose your batting hand and camera, then select **Start cover-drive
+practice**. The drill and setup controls stay fixed across the two sets. The app
+pauses for your focus after the first five; select **Start second set** to continue.
+Uncertain tracking, incomplete strokes, and confident matches to another shot do
+not count. Lower-scoring strokes with usable tracking still count. Focus cues
+come from the phases measured across all five attempts, with a general rhythm cue
+when segmentation is incomplete; they still require real-player/coach validation.
+
+Select **Progress** in the app navigation to review completed practices. Records
+stay in the same browser, with no account or video upload. Existing completed
+sessions are picked up automatically; unfinished sessions stay in guided
+practice. Download important summaries before clearing browser data.
+
+The offline app shell excludes the full image library and experimental model.
+Images are cached as they are viewed; camera model loading and scoring still
+require a connection.
 
 **Bowling legality is an indicative screen, not an official verdict.** A single 2D
 camera cannot match lab-grade 3D motion capture: elbow extension is defined in the
@@ -103,6 +131,8 @@ tracked in git (attach it to a GitHub Release if needed).
 ## Documentation
 
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — system design & algorithms
+- [docs/VALIDATION_PLAN.md](docs/VALIDATION_PLAN.md) — real-player evaluation and device acceptance checks
+- [docs/PILOT_PROTOCOL.md](docs/PILOT_PROTOCOL.md) — ready-to-run cover-drive pilot and observation form
 - [docs/API_REFERENCE.md](docs/API_REFERENCE.md) — endpoint reference
 - [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) — production deployment
 - [docs/INDEX.md](docs/INDEX.md) — full docs table of contents

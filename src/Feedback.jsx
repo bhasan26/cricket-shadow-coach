@@ -16,14 +16,14 @@ function Feedback({ score, message, shotName = '', analysisResult = null, histor
 
   // Low measurement confidence (short delivery window / poor joint tracking):
   // gray out the number so an unreliable score doesn't read as a verdict.
-  const isLowConfidence = analysisResult?.confidence === 'low';
+  const isLowConfidence = analysisResult?.confidence === 'low' || analysisResult?.tracking_quality < 60;
   const scoreColor = isLowConfidence ? '#64748b' : getScoreColor(scorePercentage);
 
   const getScoreLabel = (s) => {
-    if (s >= 80) return 'ELITE PERFORMANCE';
-    if (s >= 60) return 'GOOD FORM';
-    if (s >= 40) return 'BORDERLINE';
-    if (s > 0) return 'UNDER EVALUATION';
+    if (s >= 80) return 'CLOSE MATCH';
+    if (s >= 60) return 'BUILDING CONSISTENCY';
+    if (s >= 40) return 'KEEP PRACTICING';
+    if (s > 0) return 'TRY ANOTHER REP';
     return 'STANDBY';
   };
 
@@ -33,7 +33,7 @@ function Feedback({ score, message, shotName = '', analysisResult = null, histor
 
   const handleShare = async () => {
     const drill = shotName || 'cricket shot';
-    const text = `I scored ${scorePercentage}% on my ${drill} with Cricket Shadow Coach! 🏏`;
+    const text = `My ${drill} technique match was ${scorePercentage}/100 with Cricket Shadow Coach! 🏏`;
     const shareData = { title: 'Cricket Shadow Coach', text, url: 'https://cricketcoach.online' };
     try {
       if (navigator.share) {
@@ -115,10 +115,10 @@ function Feedback({ score, message, shotName = '', analysisResult = null, histor
             fontSize: '1.05rem', fontWeight: 900, color: scoreColor, marginBottom: '4px',
             letterSpacing: '1.5px', textShadow: `0 0 8px ${scoreColor}15`
           }}>
-            {getScoreLabel(scorePercentage)}
+            {isLowConfidence ? 'RECORD AGAIN' : getScoreLabel(scorePercentage)}
           </div>
           <div style={{ fontSize: '0.74rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px' }}>
-            Biomechanical Rating Index
+            {isBowling ? 'Indicative movement score' : 'Technique match / 100'}
           </div>
           {isLowConfidence && (
             <div style={{
@@ -132,6 +132,10 @@ function Feedback({ score, message, shotName = '', analysisResult = null, histor
           )}
         </div>
       </div>
+
+      {analysisResult && !isBowling && (
+        <p className="practice-note">A movement comparison with reference strokes. This score is practice guidance; it has not been validated as a measure of playing ability.</p>
+      )}
 
       {/* Cyberpunk feedback message board */}
       <div className="mono-telemetry" style={{
@@ -189,7 +193,7 @@ function Feedback({ score, message, shotName = '', analysisResult = null, histor
       )}
 
       {/* Share result — appears once a drill has been analysed */}
-      {hasDetails && (
+      {hasDetails && !isLowConfidence && (
         <button
           onClick={handleShare}
           style={{
@@ -263,7 +267,7 @@ function Feedback({ score, message, shotName = '', analysisResult = null, histor
           ) : (
             <div>
               <h4 style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '1px', color: '#cbd5e1', marginBottom: '14px', fontWeight: 800 }}>
-                Joint Accuracy Diagnostics
+                Joint Movement Match
               </h4>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {Object.entries(analysisResult.angle_scores).map(([joint, val]) => {

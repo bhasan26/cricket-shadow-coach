@@ -2,10 +2,46 @@
  * API client for communicating with the Python backend.
  * 
  * Handles POST requests to the FastAPI server for analyzing cricket shots,
- * with retry logic and error handling.
+ * with bounded requests and error handling. Retries are explicit so the user
+ * can reuse a captured attempt without accidentally submitting it twice.
  */
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+export const ANALYSIS_TIMEOUT_MS = 30_000;
+
+async function request(path, options = {}, timeoutMs = 10_000) {
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  const signal = options.signal;
+  let timedOut = false;
+  if (signal?.aborted) controller.abort();
+  signal?.addEventListener('abort', abort, { once: true });
+  const timer = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, timeoutMs);
+
+  try {
+    const response = await fetch(`${API_BASE_URL}${path}`, { ...options, signal: controller.signal });
+    if (!response.ok) {
+      let detail;
+      try { detail = (await response.json())?.detail; } catch { /* non-JSON response */ }
+      throw new Error(response.status === 422
+        ? 'Could not read your pose data — please record the shot again.'
+        : (typeof detail === 'string' ? detail : 'Analysis failed. Please try again.'));
+    }
+    // Keep the timeout active until the body has also arrived.
+    return await response.json();
+  } catch (error) {
+    if (timedOut) throw new Error('Analysis took too long. Retry this attempt when your connection is ready.', { cause: error });
+    if (signal?.aborted) throw new Error('Analysis cancelled. You can retry this attempt.', { cause: error });
+    if (error instanceof TypeError) throw new Error('Could not connect. Check your connection and retry this attempt.', { cause: error });
+    throw error;
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener('abort', abort);
+  }
+}
 
 /**
  * Analyze a complete shot sequence
@@ -14,44 +50,23 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
  * @param {string} shotType - Shot type key (e.g., 'cover_drive', 'pull_shot')
  * @param {Array|null} worldSequence - Optional metric 3D world landmark arrays
  * @param {boolean} isRightHanded - Batting handedness (default true)
+ * @param {{signal?: AbortSignal}} options - Optional cancellation signal
  * @returns {Promise} Response containing overall score and feedback
  */
-export async function analyzeShotSequence(shotSequence, shotType = 'cover_drive', worldSequence = null, isRightHanded = true) {
-  try {
-    const response = await fetch(`${API_BASE_URL}/analyze-shot`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        shot_sequence: shotSequence,
-        shot_type: shotType,
-        is_right_handed: isRightHanded,
-        ...(worldSequence ? { world_landmarks: worldSequence } : {}),
-      }),
-    });
-
-    if (!response.ok) {
-      // Surface the server's friendly `detail` message when present, without
-      // leaking raw stack traces (the backend no longer returns those).
-      let detail = '';
-      try {
-        const body = await response.json();
-        detail = body?.detail || '';
-      } catch {
-        detail = '';
-      }
-      const friendly = response.status === 422
-        ? 'Could not read your pose data — please record the shot again.'
-        : (detail || 'Analysis failed. Please try again.');
-      throw new Error(friendly);
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error('Shot sequence analysis failed:', error);
-    throw error;
-  }
+export async function analyzeShotSequence(shotSequence, shotType = 'cover_drive', worldSequence = null, isRightHanded = true, { signal } = {}) {
+  return request('/analyze-shot', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    signal,
+    body: JSON.stringify({
+      shot_sequence: shotSequence,
+      shot_type: shotType,
+      is_right_handed: isRightHanded,
+      ...(worldSequence ? { world_landmarks: worldSequence } : {}),
+    }),
+  }, ANALYSIS_TIMEOUT_MS);
 }
 
 /**
@@ -61,12 +76,9 @@ export async function analyzeShotSequence(shotSequence, shotType = 'cover_drive'
  */
 export async function checkAPIHealth() {
   try {
-    const response = await fetch(`${API_BASE_URL}/health`, {
-      method: 'GET',
-    });
-    return response.ok;
-  } catch (error) {
-    console.error('API health check failed:', error);
+    await request('/health');
+    return true;
+  } catch {
     return false;
   }
 }
@@ -78,13 +90,8 @@ export async function checkAPIHealth() {
  */
 export async function fetchShots() {
   try {
-    const response = await fetch(`${API_BASE_URL}/shots`, {
-      method: 'GET',
-    });
-    if (!response.ok) throw new Error('Failed to fetch shots');
-    return await response.json();
-  } catch (error) {
-    console.error('Fetch shots failed:', error);
+    return await request('/shots');
+  } catch {
     // Return fallback shot list
     return {
       cover_drive: { name: 'Cover Drive', emoji: '🏏', description: 'Classic off-side drive', difficulty: 'Intermediate' },

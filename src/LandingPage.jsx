@@ -18,30 +18,30 @@ function LandingPage({ onStartAnalysis, onNavigate }) {
   const programsData = [
     {
       title: "FOR BEGINNERS",
-      summary: "A welcoming introduction to cricket mechanics focused on basic stance, grip, and confidence-building.",
-      detail: "Progressive programs crafted to nurture young or new talent from foundational skills. Players train in dynamic shadows that focus on balance, grip fundamentals, and early swing mechanics—all supported by our AI engine.",
-      tags: ["CONFIDENCE BUILDING", "BASIC STANCE", "GRIP FUNDAMENTALS", "EARLY SWING"],
+      summary: "A simple place to start practicing stance and full batting movements.",
+      detail: "Choose a stroke, keep your full body in view, and practice at your own pace. See a skeleton overlay and movement feedback after each attempt. Start with the defensive block and build from there.",
+      tags: ["DEFENSIVE BLOCK", "BASIC STANCE", "CAMERA SETUP", "SHADOW PRACTICE"],
       image: "/rising_star_avatar.png"
     },
     {
       title: "FOR AMATEURS",
       summary: "Refine your technique and build consistency for weekend matches and club leagues.",
-      detail: "Elevate your game with advanced shadow coaching designed for club players. Focus on specific shot selections, bowling run-ups, and fielding reflexes to gain a competitive edge in your local league.",
-      tags: ["CONSISTENCY", "SHOT SELECTION", "BOWLING RUN-UP", "MATCH AWARENESS"],
+      detail: "Practice five batting strokes and compare repeat attempts. Your recent scores and consistency are saved in this browser, so you can follow your practice over time.",
+      tags: ["CONSISTENCY", "FIVE BATTING DRILLS", "LOCAL HISTORY", "REPEAT PRACTICE"],
       image: "/rohit_sharma_pull_hero.png"
     },
     {
       title: "FOR PROFESSIONALS",
-      summary: "Elite biomechanical analysis for high-performance athletes demanding millimeter perfection.",
-      detail: "Laboratory-grade kinematic data at your fingertips. Our AI tracks joint angles, bat speed, and release points with unprecedented accuracy to fine-tune mechanics for the professional arena.",
-      tags: ["KINEMATICS", "JOINT ANGLES", "BAT SPEED", "RELEASE POINT"],
+      summary: "An extra view of your practice to discuss with your coach.",
+      detail: "Review estimated joint movement and compare videos side by side. Camera-based estimates depend on framing and tracking quality; use them alongside a coach's judgment.",
+      tags: ["MOVEMENT REVIEW", "JOINT ESTIMATES", "VIDEO COMPARISON", "COACH DISCUSSION"],
       image: "/babar_azam_coverdrive_hero.png"
     },
     {
       title: "FOR COACHES",
-      summary: "Powerful team management and bulk analysis tools to elevate your entire squad.",
-      detail: "Manage your academy with ease. Track the progress of multiple players, compare side-by-side techniques, and provide data-backed feedback that accelerates your team's development.",
-      tags: ["SQUAD MANAGEMENT", "SIDE-BY-SIDE", "PROGRESS TRACKING", "DATA FEEDBACK"],
+      summary: "Use video comparison and movement estimates to support coaching conversations.",
+      detail: "Load a player's video and a reference clip for side-by-side review, adjustable playback, and A/B looping. The beta focuses on individual practice; history stays in the current browser.",
+      tags: ["VIDEO REVIEW", "SIDE-BY-SIDE", "SLOW PLAYBACK", "A/B LOOPING"],
       image: "/cricket_coach_avatar.png"
     }
   ];
@@ -100,7 +100,7 @@ function LandingPage({ onStartAnalysis, onNavigate }) {
     <div className="courto-landing">
       <Helmet>
         <title>Cricket Shadow Coach — Free AI Batting & Bowling Analysis</title>
-        <meta name="description" content="Free, real-time AI biomechanical analysis for cricket. Track 33+ skeletal landmarks for batting strokes and check ICC bowling legality in your browser." />
+        <meta name="description" content="Practice cricket strokes with free camera-based movement feedback, five batting drills, and local video comparison. Video stays on your device; joint coordinates are sent for scoring." />
         <link rel="canonical" href="https://www.cricketcoach.online/" />
       </Helmet>
       {/* ── Navigation ── */}
@@ -154,7 +154,7 @@ function LandingPage({ onStartAnalysis, onNavigate }) {
       {/* ── Hero Section ── */}
       <section className="courto-hero">
         <div className="hero-bg">
-          <img src="/hero_cricket_bat.jpg" alt="Cricket bat and ball, symbolizing AI-powered batting and bowling technique analysis" className="hero-img" />
+          <img fetchPriority="high" decoding="async" src="/hero_cricket_bat.jpg" alt="Cricket bat and ball, symbolizing AI-powered batting and bowling technique analysis" className="hero-img" />
           <div className="hero-overlay"></div>
           <div className="hero-orb orb-1"></div>
           <div className="hero-orb orb-2"></div>
@@ -169,7 +169,7 @@ function LandingPage({ onStartAnalysis, onNavigate }) {
             <span className="text-neon">TECHNIQUE</span>
           </h1>
           <p className="hero-desc reveal reveal-delay-2">
-            Professional biomechanical analysis powered by computer vision. Perfect your bowling action and batting strokes with real-time feedback.
+            Practice cricket strokes with camera-based movement feedback. Choose a drill, play a full stroke, and compare your next attempt.
           </p>
           <div className="hero-buttons reveal reveal-delay-3">
             <button className="courto-btn courto-btn-primary" onClick={onStartAnalysis}>
@@ -186,18 +186,18 @@ function LandingPage({ onStartAnalysis, onNavigate }) {
       <section className="stats-strip">
         <div className="stats-container reveal">
           <div className="stat-item">
-            <div className="stat-value">15<span className="text-neon">ms</span></div>
-            <div className="stat-label">INFERENCE LATENCY</div>
+            <div className="stat-value">5</div>
+            <div className="stat-label">BATTING DRILLS</div>
           </div>
           <div className="stat-divider"></div>
           <div className="stat-item">
-            <div className="stat-value">33<span className="text-neon">+</span></div>
+            <div className="stat-value">33</div>
             <div className="stat-label">TRACKED LANDMARKS</div>
           </div>
           <div className="stat-divider"></div>
           <div className="stat-item">
-            <div className="stat-value">11.1</div>
-            <div className="stat-label">ICC RULE COMPLIANCE</div>
+            <div className="stat-value">FREE</div>
+            <div className="stat-label">DURING BETA</div>
           </div>
         </div>
       </section>
@@ -206,7 +206,7 @@ function LandingPage({ onStartAnalysis, onNavigate }) {
       <section id="how-it-works" className="feature-block-section">
         <div className="feature-block">
           <div className="feature-block-img reveal">
-            <img src="/cricket_batting_hero.png" alt="AI skeletal landmark tracking overlay on a cricket batter's stroke" />
+            <img loading="lazy" decoding="async" src="/cricket_batting_hero.png" alt="AI skeletal landmark tracking overlay on a cricket batter's stroke" />
             <div className="feature-glass-tag">
               <span className="dot"></span> REAL-TIME TRACKING
             </div>
@@ -215,12 +215,12 @@ function LandingPage({ onStartAnalysis, onNavigate }) {
             <h4 className="section-subtitle">THE PROCESS</h4>
             <h2 className="section-title">STAND IN FRONT OF CAMERA & <span className="text-neon">PLAY</span></h2>
             <p className="section-desc">
-              Our AI tracks 33 skeletal landmarks at 30+ FPS, classifies your action in real-time, and delivers precise biomechanical feedback. No special equipment needed. Just your device's camera.
+              Stand back with your full body in view, choose a batting drill, and play one full stroke. The app estimates 33 body landmarks and compares your movement with reference strokes. Tracking quality varies with your device, lighting, and camera position.
             </p>
             <ul className="feature-list">
-              <li><ArrowRight /> Instant stroke-by-stroke scoring</li>
-              <li><ArrowRight /> ICC bowling compliance verification</li>
-              <li><ArrowRight /> Sub-degree joint accuracy diagnostics</li>
+              <li><ArrowRight /> Guided cover-drive practice: five strokes, one focus, five more</li>
+              <li><ArrowRight /> Indicative bowling arm-extension estimates</li>
+              <li><ArrowRight /> Tracking-quality guidance and joint movement feedback</li>
             </ul>
             <button className="courto-btn courto-btn-outline mt-4" onClick={onStartAnalysis}>
               TRY IT NOW
@@ -239,41 +239,41 @@ function LandingPage({ onStartAnalysis, onNavigate }) {
         <div className="styles-grid">
           {/* Card 1 */}
           <div className="style-card tilt-3d reveal">
-            <img src="/kagiso_rabada_fastballer.png" alt="Fast bowler mid-delivery, analyzed for ICC-legal arm extension" className="style-card-bg" />
+            <img loading="lazy" decoding="async" src="/kagiso_rabada_fastballer.png" alt="Fast bowler mid-delivery, analyzed for ICC-legal arm extension" className="style-card-bg" />
             <div className="style-card-overlay">
               <div className="style-card-tag">BOWLING</div>
               <h3 className="style-card-title">FAST BOWLING</h3>
-              <p className="style-card-desc">140+ km/h • High impact. Check your arm extension for ICC legality instantly.</p>
+              <p className="style-card-desc">Review an estimated elbow-extension range. An indicative practice screen, not an official legality assessment.</p>
             </div>
             <div className="tilt-glare"></div>
           </div>
           {/* Card 2 */}
           <div className="style-card tilt-3d reveal reveal-delay-1">
-            <img src="/shane_warne_hero.png" alt="Spin bowler releasing the ball, tracked for drift, turn, and release point" className="style-card-bg" />
+            <img loading="lazy" decoding="async" src="/shane_warne_hero.png" alt="Spin bowling practice illustration" className="style-card-bg" />
             <div className="style-card-overlay">
               <div className="style-card-tag">BOWLING</div>
               <h3 className="style-card-title">SPIN BOWLING</h3>
-              <p className="style-card-desc">Finger & wrist spin. Analyze drift, turn, and release points.</p>
+              <p className="style-card-desc">Use the bowling movement screen or compare your delivery with a reference video.</p>
             </div>
             <div className="tilt-glare"></div>
           </div>
           {/* Card 3 */}
           <div className="style-card tilt-3d reveal reveal-delay-2">
-            <img src="/babar_azam_coverdrive_hero.png" alt="Batter executing a cover drive, checked for head alignment and full bat face" className="style-card-bg" />
+            <img loading="lazy" decoding="async" src="/babar_azam_coverdrive_hero.png" alt="Batter practicing a cover drive" className="style-card-bg" />
             <div className="style-card-overlay">
               <div className="style-card-tag">BATTING</div>
               <h3 className="style-card-title">COVER DRIVE</h3>
-              <p className="style-card-desc">Classic off-side. Ensure perfect head alignment and full face execution.</p>
+              <p className="style-card-desc">Practice the classic off-side drive and compare your joint movement through the stroke.</p>
             </div>
             <div className="tilt-glare"></div>
           </div>
           {/* Card 4 */}
           <div className="style-card tilt-3d reveal reveal-delay-3">
-            <img src="/rohit_sharma_pull_hero.png" alt="Batter playing a pull shot, analyzed for weight transfer and bat swing path" className="style-card-bg" />
+            <img loading="lazy" decoding="async" src="/rohit_sharma_pull_hero.png" alt="Batter practicing a pull shot" className="style-card-bg" />
             <div className="style-card-overlay">
               <div className="style-card-tag">BATTING</div>
               <h3 className="style-card-title">PULL SHOT</h3>
-              <p className="style-card-desc">Cross-bat power. Diagnose weight transfer and bat swing path.</p>
+              <p className="style-card-desc">Review the movement of your arms and knees through a full pull-shot practice swing.</p>
             </div>
             <div className="tilt-glare"></div>
           </div>
@@ -285,21 +285,21 @@ function LandingPage({ onStartAnalysis, onNavigate }) {
         <div className="solid-info-content">
           <h2 className="solid-info-title">DEMOCRATIZING<br />SPORTS SCIENCE</h2>
           <p className="solid-info-desc">
-            Previously requiring multi-million dollar motion capture studios, our web-based neural network pipeline delivers precise analytics from any standard camera or mobile device.
+            Build a regular practice habit with the camera you already have. Get movement estimates and reference comparisons at home, then take your questions to a coach.
           </p>
           <button className="courto-btn courto-btn-outline dark-outline" onClick={onStartAnalysis}>
             START ANALYSIS <ArrowRight />
           </button>
         </div>
         <div className="solid-info-visual">
-          <img src="/cricket_bowler_hero.png" alt="AI cricket analysis overlay showing a legal 14 degree bowling elbow angle" />
+          <img loading="lazy" decoding="async" src="/cricket_bowler_hero.png" alt="Illustration of a cricket bowling movement overlay" />
           <div className="bio-glass-card top-right">
-            <span className="bio-label">ELBOW ANGLE</span>
-            <span className="bio-val">14° LEGAL</span>
+            <span className="bio-label">MOVEMENT REVIEW</span>
+            <span className="bio-val">PRACTICE</span>
           </div>
           <div className="bio-glass-card bottom-left">
-            <span className="bio-label">KNEE FLEXION</span>
-            <span className="bio-val">65°</span>
+            <span className="bio-label">CAMERA ESTIMATES</span>
+            <span className="bio-val">INDICATIVE</span>
           </div>
         </div>
       </section>
@@ -314,7 +314,7 @@ function LandingPage({ onStartAnalysis, onNavigate }) {
         <div className="scatter-pills-container reveal">
           <div className="spill s-black spill-1">PASSION PROJECT</div>
           <div className="spill s-outline spill-2">FOR ALL LEVELS</div>
-          <div className="spill s-neon spill-3">100% LOCAL</div>
+          <div className="spill s-neon spill-3">VIDEO STAYS LOCAL</div>
           <div className="spill s-outline spill-4">NO CLOUD</div>
           <div className="spill s-black spill-5">BIOMECHANICS</div>
           <div className="spill s-neon spill-6">FREE BETA</div>
@@ -327,8 +327,8 @@ function LandingPage({ onStartAnalysis, onNavigate }) {
           {/* Card 1 */}
           <div className="scatter-card">
             <div className="scatter-quote-icon">"</div>
-            <h3 className="scatter-card-title">100% LOCAL PROCESSING</h3>
-            <p className="scatter-card-text">"Unlike other platforms, we don't upload your videos to the cloud. Our computer vision models run entirely on your device inside your browser. Your technique data never leaves your computer."</p>
+            <h3 className="scatter-card-title">YOUR VIDEO STAYS LOCAL</h3>
+            <p className="scatter-card-text">"Pose detection runs in your browser. Your camera video stays on your device; joint coordinates are sent to our API to compare your movement with reference strokes. Practice history stays in this browser."</p>
             <div className="scatter-card-author">
               <div className="scatter-author-img"></div>
               <div className="scatter-author-info">
@@ -342,7 +342,7 @@ function LandingPage({ onStartAnalysis, onNavigate }) {
           <div className="scatter-card">
             <div className="scatter-quote-icon">"</div>
             <h3 className="scatter-card-title">OUR MISSION</h3>
-            <p className="scatter-card-text">"Cricket Coach is built to democratize access to elite biomechanical analysis. We believe every player deserves laboratory-grade technique feedback without privacy compromises."</p>
+            <p className="scatter-card-text">"Cricket Coach is an independent project making guided shadow practice more accessible. Our aim is useful practice feedback with clear limits on what a camera can measure."</p>
             <div className="scatter-card-author">
               <div className="scatter-author-img"></div>
               <div className="scatter-author-info">
@@ -403,7 +403,7 @@ function LandingPage({ onStartAnalysis, onNavigate }) {
                       </div>
                     </div>
                     <div className="accordion-image-col">
-                      <img src={prog.image} alt={`Cricket player representing the ${prog.title.toLowerCase()} coaching program`} className="accordion-image" />
+                      <img loading="lazy" decoding="async" src={prog.image} alt={`Cricket player representing the ${prog.title.toLowerCase()} coaching program`} className="accordion-image" />
                     </div>
                   </div>
                 )}
@@ -432,7 +432,7 @@ function LandingPage({ onStartAnalysis, onNavigate }) {
               </li>
               <li>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M5 12l5 5L20 7" /></svg>
-                ICC bowling compliance audit
+                Indicative bowling movement screen
               </li>
               <li>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M5 12l5 5L20 7" /></svg>

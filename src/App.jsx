@@ -10,6 +10,7 @@ import './App.css';
 // Lazy load the heavy canvas/AI modules so they don't bloat the initial landing bundle
 const CameraFeed = lazy(() => import('./CameraFeed'));
 const VideoDashboard = lazy(() => import('./VideoDashboard'));
+const ProgressDashboard = lazy(() => import('./pages/ProgressDashboard'));
 const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
 const TermsOfService = lazy(() => import('./pages/TermsOfService'));
 const ContactUs = lazy(() => import('./pages/ContactUs'));
@@ -30,14 +31,14 @@ const LoadingFallback = () => (
   </div>
 );
 
-function AnalysisLayout({ children }) {
+function AnalysisLayout({ children, description }) {
   return (
     <div style={{
       minHeight: '100vh', background: '#050505',
       fontFamily: "'Plus Jakarta Sans', 'Inter', system-ui, sans-serif", color: '#f8fafc',
     }}>
       <Header />
-      <Hero />
+      <Hero description={description} />
       <main className="main-content" style={{ maxWidth: '1440px', margin: '0 auto', padding: '20px' }}>
         <Suspense fallback={<LoadingFallback />}>{children}</Suspense>
       </main>
@@ -72,6 +73,7 @@ function App() {
         <Route path="/" element={<LandingRoute />} />
         <Route path="/live" element={<AnalysisLayout><CameraFeed /></AnalysisLayout>} />
         <Route path="/dashboard" element={<AnalysisLayout><VideoDashboard /></AnalysisLayout>} />
+        <Route path="/progress" element={<AnalysisLayout description="Your completed practices and movement comparisons, saved on this device."><ProgressDashboard /></AnalysisLayout>} />
         <Route path="/privacy" element={<LegalRoute Component={PrivacyPolicy} />} />
         <Route path="/terms" element={<LegalRoute Component={TermsOfService} />} />
         <Route path="/contact" element={<LegalRoute Component={ContactUs} />} />

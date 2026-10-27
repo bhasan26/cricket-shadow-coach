@@ -139,7 +139,7 @@ const getSession = () => {
  * @param {Array<Array<{x,y,z}>>} worldFrames one 33-landmark frame per entry.
  * @returns {Promise<{shotType, label, confidence}|null>} null when unusable.
  */
-export async function classifyShot(worldFrames) {
+async function inferShot(worldFrames) {
   if (!worldFrames || worldFrames.length < 10) return null;
   try {
     const { ort, session } = await getSession();
@@ -159,5 +159,24 @@ export async function classifyShot(worldFrames) {
   } catch (err) {
     console.warn('Shot classifier unavailable:', err);
     return null;
+  }
+}
+
+// Experimental verification is optional. A slow model download must not block
+// a completed backend score or prevent the user cancelling an analysis.
+export async function classifyShot(worldFrames, { signal } = {}) {
+  if (signal?.aborted || !worldFrames || worldFrames.length < 10) return null;
+  let timer;
+  let onAbort;
+  const skipped = new Promise(resolve => {
+    onAbort = () => resolve(null);
+    signal?.addEventListener('abort', onAbort, { once: true });
+    timer = setTimeout(onAbort, 2_000);
+  });
+  try {
+    return await Promise.race([inferShot(worldFrames), skipped]);
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener('abort', onAbort);
   }
 }

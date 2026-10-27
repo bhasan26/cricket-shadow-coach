@@ -15,7 +15,6 @@ import numpy as np
 
 from angle_utils import (
     channel_values,
-    extract_shot_angles,
     resample_channel,
     smooth_sequence,
 )
@@ -82,9 +81,9 @@ BOWLING_DISCLAIMER = (
 )
 
 
-def evaluate_frame(landmarks, frame_index=0):
-    """Evaluate a single frame of pose data."""
-    return extract_shot_angles(landmarks)
+def evaluate_frame(angles, frame_index=0):
+    """Evaluate the already-extracted angles supplied by the frame endpoints."""
+    return evaluate_shot(angles)
 
 
 def smooth_angle_sequence(angle_sequence):

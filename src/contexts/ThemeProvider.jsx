@@ -1,10 +1,19 @@
 import { useEffect, useState } from 'react';
 import { ThemeContext } from './ThemeContext';
 
+function readSavedTheme() {
+  try {
+    const value = localStorage.getItem('theme');
+    return value === 'dark' || value === 'light' ? value : null;
+  } catch {
+    return null;
+  }
+}
+
 export function ThemeProvider({ children }) {
   const [theme, setTheme] = useState(() => {
     // Check localStorage first
-    const stored = localStorage.getItem('theme');
+    const stored = readSavedTheme();
     if (stored) return stored;
 
     // Otherwise, detect system preference
@@ -16,7 +25,7 @@ export function ThemeProvider({ children }) {
 
   useEffect(() => {
     // Save to localStorage
-    localStorage.setItem('theme', theme);
+    try { localStorage.setItem('theme', theme); } catch { /* theme still works without browser storage */ }
 
     // Update document class and meta tag
     if (theme === 'dark') {
@@ -34,7 +43,7 @@ export function ThemeProvider({ children }) {
     // Listen for system theme changes
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
     const handleChange = (e) => {
-      const stored = localStorage.getItem('theme');
+      const stored = readSavedTheme();
       // Only auto-switch if user hasn't manually set a preference
       if (!stored) {
         setTheme(e.matches ? 'dark' : 'light');

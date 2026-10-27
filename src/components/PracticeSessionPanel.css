@@ -1,0 +1,68 @@
+.practice-session {
+  --practice-accent: #047857;
+  padding: clamp(20px, 3vw, 30px);
+  color: var(--text-secondary, #cbd5e1);
+  border: 1px solid rgba(0, 245, 160, 0.24);
+  border-radius: 16px;
+  background: var(--bg-surface, #1a2332);
+}
+
+html.dark .practice-session { --practice-accent: #00f5a0; }
+
+.practice-intro, .practice-heading, .practice-review, .practice-comparison {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.practice-session h2 {
+  font-size: clamp(1.2rem, 3vw, 1.65rem);
+  color: var(--text-primary, #f8fafc);
+  margin: 4px 0 12px;
+}
+
+.practice-session p { line-height: 1.6; }
+.practice-eyebrow { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1px; color: var(--practice-accent); }
+.practice-steps, .practice-reps { list-style: none; display: flex; gap: 10px; padding: 0; margin: 20px 0; }
+.practice-steps li { flex: 1; padding: 8px; border-bottom: 2px solid #334155; font-size: 0.78rem; }
+.practice-steps [aria-current="step"] { color: var(--practice-accent); border-color: currentColor; }
+.practice-progress-label { margin: 16px 0 8px; font-weight: 700; }
+.practice-session progress { display: block; width: 100%; height: 8px; accent-color: var(--practice-accent); }
+.practice-reps li { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px 4px; border-radius: 10px; background: rgba(148, 163, 184, 0.06); }
+.practice-reps span { font-size: 0.75rem; }
+.practice-reps strong { color: var(--text-primary, #f8fafc); font-size: 1rem; }
+.practice-reps .recorded { background: rgba(0, 245, 160, 0.09); }
+.practice-cue { font-size: clamp(1.1rem, 2.5vw, 1.4rem); font-weight: 700; color: var(--text-primary, #f8fafc); margin: 16px 0; }
+.practice-session .practice-footnote { font-size: 0.78rem; margin-top: 16px; }
+.practice-notice { padding: 12px; border-left: 3px solid #ff9f0d; background: rgba(255, 159, 13, 0.07); }
+.practice-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 16px; }
+.practice-session button {
+  min-height: 44px;
+  padding: 12px 20px;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  cursor: pointer;
+}
+.practice-session button:focus-visible { outline: 3px solid var(--practice-accent); outline-offset: 4px; }
+.practice-session button:disabled { opacity: 0.5; cursor: not-allowed; }
+.practice-text-button { background: transparent; color: inherit; border: 1px solid #64748b; border-radius: 10px; padding: 10px 14px; cursor: pointer; }
+a.practice-text-button { display: inline-flex; align-items: center; min-height: 44px; text-decoration: none; font-size: 0.85rem; }
+.practice-review { align-items: flex-start; margin-top: 24px; }
+.practice-review > div { flex: 1; }
+.practice-review .btn-primary { margin-top: 16px; }
+.practice-set-metrics { display: flex; flex: 1; flex-direction: column; gap: 10px; padding: 20px; background: rgba(148, 163, 184, 0.06); border-radius: 14px; }
+.practice-set-metrics strong { font-size: 1.8rem; color: var(--text-primary, #f8fafc); }
+.practice-set-metrics small { font-size: 0.8rem; font-weight: 400; }
+.practice-set-metrics > span { font-size: 0.85rem; }
+
+@media (max-width: 640px) {
+  .practice-intro, .practice-heading, .practice-review, .practice-comparison { flex-direction: column; align-items: stretch; gap: 16px; }
+  .practice-steps { gap: 4px; }
+  .practice-steps li { padding: 6px 2px; font-size: 0.7rem; }
+  .practice-reps { gap: 5px; }
+  .practice-reps strong { font-size: 0.85rem; }
+  .practice-actions { align-items: stretch; flex-direction: column; }
+}

@@ -5,7 +5,7 @@ import InstallButton from './InstallButton';
 // survives the cursor entering child <svg>/<span> nodes, unlike JS onMouseEnter.
 function NavButton({ icon, label, active, onClick }) {
   return (
-    <button type="button" onClick={onClick} className={`app-nav-btn ${active ? 'active' : ''}`}>
+    <button type="button" onClick={onClick} aria-current={active ? 'page' : undefined} className={`app-nav-btn ${active ? 'active' : ''}`}>
       {icon}
       <span className="nav-label">{label}</span>
     </button>
@@ -60,14 +60,20 @@ export default function Header() {
           <NavButton
             active={pathname === '/live'}
             onClick={() => navigate('/live')}
-            label="LIVE TELEMETRY"
+            label="LIVE PRACTICE"
             icon={<svg className="nav-icon" width="18" height="18" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18 L9 11.25l4.306 4.306a11.95 11.95 0 0 1 5.814-5.518l2.74-1.22m0 0-5.94-2.281m5.94 2.28-2.28 5.941" /></svg>}
           />
           <NavButton
             active={pathname === '/dashboard'}
             onClick={() => navigate('/dashboard')}
-            label="VIDEO DASHBOARD"
+            label="VIDEO REVIEW"
             icon={<svg className="nav-icon" width="18" height="18" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z" /></svg>}
+          />
+          <NavButton
+            active={pathname === '/progress'}
+            onClick={() => navigate('/progress')}
+            label="PROGRESS"
+            icon={<svg className="nav-icon" width="18" height="18" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v16h16M8 15l4-5 4 2 4-7" /></svg>}
           />
         </div>
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
